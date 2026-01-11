@@ -112,11 +112,23 @@ export function ComparisonCard({ result, displayPeriod, isLowest, isLowestPayImp
                 <span className="font-mono">{formatCurrency(result.takeHomePayAfter || 0)}/{payFrequencyLabel.slice(0, 2)}</span>
               </div>
               <div className="flex justify-between text-sm font-medium pt-1 border-t mt-1">
-                <span>Reduction</span>
+                <span>Total Reduction</span>
                 <span className="font-mono text-amber-600 dark:text-amber-400" data-testid="novated-pay-reduction">
                   -{formatCurrency(result.takeHomePayReduction)}/{payFrequencyLabel.slice(0, 2)}
                 </span>
               </div>
+              {result.preTaxDeductionPerPeriod !== undefined && (
+                <div className="flex justify-between text-xs text-muted-foreground pl-2">
+                  <span>Pre-tax deduction</span>
+                  <span className="font-mono">-{formatCurrency(result.preTaxDeductionPerPeriod)}/{payFrequencyLabel.slice(0, 2)}</span>
+                </div>
+              )}
+              {result.postTaxDeductionPerPeriod !== undefined && result.postTaxDeductionPerPeriod > 0 && (
+                <div className="flex justify-between text-xs text-muted-foreground pl-2">
+                  <span>Post-tax ECM</span>
+                  <span className="font-mono">-{formatCurrency(result.postTaxDeductionPerPeriod)}/{payFrequencyLabel.slice(0, 2)}</span>
+                </div>
+              )}
             </div>
             {result.taxSavings && result.taxSavings > 0 && (
               <div className="mt-2 pt-2 border-t flex items-center gap-2">
@@ -144,6 +156,54 @@ export function ComparisonCard({ result, displayPeriod, isLowest, isLowestPayImp
               <div className="flex justify-between font-medium">
                 <span>Vehicle Purchase</span>
                 <span className="font-mono">{formatCurrency(result.breakdown.vehicleCost)}</span>
+              </div>
+            )}
+            {result.method === 'finance' && result.breakdown.monthlyPayment !== undefined && result.breakdown.monthlyPayment > 0 && (
+              <div className="flex justify-between font-medium bg-muted/50 p-2 rounded -mx-1">
+                <span className="flex items-center gap-1">
+                  Loan Repayment
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-3 w-3 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>Your regular loan repayment amount. Total repayments: {formatCurrency(result.breakdown.totalFinancePayments || 0)}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </span>
+                <span className="font-mono">
+                  {formatCurrency(
+                    payFrequency === 'weekly' 
+                      ? result.breakdown.monthlyPayment * 12 / 52 
+                      : payFrequency === 'fortnightly' 
+                        ? result.breakdown.monthlyPayment * 12 / 26 
+                        : result.breakdown.monthlyPayment
+                  )}/{payFrequencyLabel.slice(0, 2)}
+                </span>
+              </div>
+            )}
+            {result.method === 'novated' && result.breakdown.monthlyPayment !== undefined && result.breakdown.monthlyPayment > 0 && (
+              <div className="flex justify-between font-medium bg-muted/50 p-2 rounded -mx-1">
+                <span className="flex items-center gap-1">
+                  Lease Payment
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-3 w-3 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>Lease payment (ex-GST). Total lease payments: {formatCurrency(result.breakdown.totalFinancePayments || 0)}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </span>
+                <span className="font-mono">
+                  {formatCurrency(
+                    payFrequency === 'weekly' 
+                      ? result.breakdown.monthlyPayment * 12 / 52 
+                      : payFrequency === 'fortnightly' 
+                        ? result.breakdown.monthlyPayment * 12 / 26 
+                        : result.breakdown.monthlyPayment
+                  )}/{payFrequencyLabel.slice(0, 2)}
+                </span>
               </div>
             )}
             <div className="flex justify-between">

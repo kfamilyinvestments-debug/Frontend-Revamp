@@ -15,7 +15,8 @@ import {
   FuelType,
   UserInputs,
   ComparisonResult,
-  DEFAULT_SERVICING_COSTS
+  DEFAULT_SERVICING_COSTS,
+  DEFAULT_NOVATED_RATES
 } from '@/lib/types';
 import { 
   calculateAustralianTax, 
@@ -38,7 +39,7 @@ export default function Calculator() {
   const [payFrequency, setPayFrequency] = useState<'weekly' | 'fortnightly' | 'monthly'>('fortnightly');
   const [financeInterestRate, setFinanceInterestRate] = useState(8.5);
   const [financeDeposit, setFinanceDeposit] = useState(0);
-  const [novatedInterestRate, setNovatedInterestRate] = useState(9.0);
+  const [novatedInterestRate, setNovatedInterestRate] = useState(DEFAULT_NOVATED_RATES['petrol_diesel']);
   const [workUseOver50, setWorkUseOver50] = useState(false);
   const [comparisonMethods, setComparisonMethods] = useState({
     outright: true,
@@ -50,6 +51,7 @@ export default function Calculator() {
   const handleFuelTypeChange = useCallback((newFuelType: FuelType) => {
     setFuelType(newFuelType);
     setServicingAnnual(DEFAULT_SERVICING_COSTS[newFuelType]);
+    setNovatedInterestRate(DEFAULT_NOVATED_RATES[newFuelType]);
   }, []);
 
   const handleToggle = useCallback((method: 'outright' | 'finance' | 'novated', enabled: boolean) => {

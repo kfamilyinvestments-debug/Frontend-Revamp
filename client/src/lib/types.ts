@@ -40,7 +40,15 @@ export interface CostBreakdown {
   gstSavingsRunning?: number;
   preTaxDeduction?: number;
   postTaxDeduction?: number;
+  monthlyPayment?: number;
+  totalFinancePayments?: number;
 }
+
+export const DEFAULT_NOVATED_RATES: Record<FuelType, number> = {
+  petrol_diesel: 9.5,
+  plugin_hybrid: 9.5,
+  ev: 8.0,
+};
 
 export interface ComparisonResult {
   method: 'outright' | 'finance' | 'novated';
@@ -53,6 +61,8 @@ export interface ComparisonResult {
   taxSavings?: number;
   takeHomePayBefore?: number;
   takeHomePayAfter?: number;
+  preTaxDeductionPerPeriod?: number;
+  postTaxDeductionPerPeriod?: number;
 }
 
 export interface TaxCalculation {

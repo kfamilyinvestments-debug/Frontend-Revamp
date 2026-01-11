@@ -102,8 +102,10 @@ export function calculateFinance(inputs: UserInputs): ComparisonResult {
     monthlyPayment = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1);
     totalRepayments = monthlyPayment * numPayments;
     totalInterest = totalRepayments - loanAmount;
-  } else {
+  } else if (loanAmount > 0) {
     totalRepayments = loanAmount;
+    monthlyPayment = loanAmount / numPayments;
+    totalInterest = 0;
   }
   
   const totalRunningCosts = breakdown.fuel + breakdown.insurance + breakdown.servicing + breakdown.tyres + breakdown.regoCtp;
@@ -118,7 +120,12 @@ export function calculateFinance(inputs: UserInputs): ComparisonResult {
     totalLifetimeCost,
     costPerYear,
     costPerPayCycle,
-    breakdown: { ...breakdown, interest: totalInterest },
+    breakdown: { 
+      ...breakdown, 
+      interest: totalInterest,
+      monthlyPayment: monthlyPayment,
+      totalFinancePayments: totalRepayments,
+    },
     keyInsight: `${formatCurrency(totalInterest)} in interest over ${ownershipYears} years.`,
   };
 }
@@ -180,6 +187,7 @@ export function calculateNovatedLease(inputs: UserInputs): ComparisonResult {
     totalLeasePayments = monthlyLeasePayment * numPayments;
   } else {
     totalLeasePayments = financedAmount - residualValue;
+    monthlyLeasePayment = totalLeasePayments / numPayments;
   }
   
   const totalInterest = Math.max(0, totalLeasePayments - (financedAmount - residualValue));
@@ -243,6 +251,10 @@ export function calculateNovatedLease(inputs: UserInputs): ComparisonResult {
     keyInsight = `Save ${formatCurrency(totalCombinedSavings)} (${formatCurrency(totalIncomeTaxSaving)} tax + ${formatCurrency(totalGstSavings)} GST).`;
   }
   
+  // Per-period values for display
+  const preTaxDeductionPerPeriod = getPayCycleAmount(annualPreTaxDeduction, payFrequency);
+  const postTaxDeductionPerPeriod = getPayCycleAmount(annualECM, payFrequency);
+  
   return {
     method: 'novated',
     totalLifetimeCost,
@@ -257,12 +269,16 @@ export function calculateNovatedLease(inputs: UserInputs): ComparisonResult {
       gstSavingsRunning: totalGstSavingsRunning,
       preTaxDeduction: annualPreTaxDeduction * ownershipYears,
       postTaxDeduction: annualECM * ownershipYears,
+      monthlyPayment: monthlyLeasePayment,
+      totalFinancePayments: totalLeasePayments,
     },
     keyInsight,
     takeHomePayReduction,
     taxSavings: totalIncomeTaxSaving,
     takeHomePayBefore,
     takeHomePayAfter,
+    preTaxDeductionPerPeriod,
+    postTaxDeductionPerPeriod,
   };
 }
 
