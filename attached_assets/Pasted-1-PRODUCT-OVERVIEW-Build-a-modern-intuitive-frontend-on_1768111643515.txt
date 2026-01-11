@@ -1,0 +1,372 @@
+1. PRODUCT OVERVIEW
+
+Build a modern, intuitive, frontend-only web application for Australian consumers comparing the true lifetime cost of owning a car under three scenarios:
+
+Buying outright (cash)
+
+Traditional car finance
+
+Novated leasing
+
+The core purpose is to calculate and clearly compare:
+
+The total cost of ownership (TCO) over a selected ownership period
+
+And, critically, the actual reduction to take-home pay (especially for novated leasing)
+
+This tool should remove confusion, feel trustworthy, and make users understand what the car really costs them per pay cycle.
+
+2. CORE USER INPUTS (LEFT PANEL)
+A. VEHICLE DETAILS
+
+Vehicle selector (dropdown)
+
+Include sample vehicles:
+
+Petrol / Diesel
+
+Hybrid
+
+EV
+
+Each vehicle includes:
+
+Fuel type
+
+Average fuel or electricity consumption
+
+Average servicing costs
+
+Drive-away price
+
+Editable numeric input
+
+Prefilled based on vehicle selection
+
+B. USAGE ASSUMPTIONS
+
+Ownership period
+
+Slider: 1–5 years
+
+Kilometres driven per year
+
+Slider + manual input
+
+Default: 15,000 km
+
+C. RUNNING COST ASSUMPTIONS (EDITABLE DEFAULTS)
+
+Each running cost should have:
+
+A greyed-out “average” default
+
+Slider control
+
+Manual override input
+
+Include:
+
+Fuel / Electricity
+
+ICE: fuel price × consumption × km
+
+EV: electricity price × kWh/100km × km
+
+Insurance
+
+Estimated using vehicle price and state (approximate)
+
+Servicing
+
+Average annual servicing by vehicle type
+
+Tyres
+
+Based on average tyre life (e.g. 40,000–50,000 km)
+
+Registration + CTP
+
+Simple annual estimate (state-based but approximate)
+
+3. COMPARISON METHODS (TOGGLEABLE)
+
+Allow users to compare:
+
+Outright Purchase
+
+Finance
+
+Novated Lease
+
+Users can toggle any combination (1, 2, or all 3).
+All calculations and charts update dynamically.
+
+4. OUTRIGHT PURCHASE LOGIC
+
+Drive-away price paid upfront
+
+Include:
+
+Running costs over ownership period
+
+Estimated depreciation (simple annual %)
+
+Deduct estimated resale value at end
+
+Outputs:
+
+Total cost of ownership
+
+Cost per year
+
+Cost per pay cycle (derived later)
+
+5. TRADITIONAL FINANCE LOGIC
+Inputs:
+
+Interest rate (slider, default ~8.5%)
+
+Loan term = ownership period
+
+Optional deposit
+
+Calculations:
+
+Monthly repayments
+
+Total interest paid
+
+Principal + interest + running costs
+
+Less estimated resale value
+
+Outputs:
+
+Total lifetime cost
+
+Interest clearly highlighted
+
+6. NOVATED LEASE LOGIC (CORE ENGINE)
+Defaults:
+
+Interest rate: 9.0–9.5%
+
+Lease term = ownership period
+
+ATO minimum residual (balloon) values must be used
+
+Balloon payment excluded from payroll but displayed clearly
+
+A. FBT & TAX RULES
+EVs:
+
+FBT-exempt
+
+Lease payments + running costs fully pre-tax
+
+Highlight tax savings clearly
+
+ICE / Hybrid:
+
+Default to Statutory Method
+
+Toggle:
+
+“Vehicle used for work/business more than 50%”
+
+Switch to Operating Cost Method
+
+Reduce FBT impact accordingly
+
+7. SALARY & PAY PROFILE (GLOBAL INPUT SECTION)
+
+Add a “Your Salary & Pay Cycle” section used to calculate novated lease impact and normalise comparisons.
+
+Inputs:
+
+Annual gross salary
+
+Default placeholder: $100,000
+
+Pay frequency
+
+Weekly
+
+Fortnightly
+
+Monthly
+
+Optional state (simplified)
+
+Tax Logic:
+
+Use simplified Australian marginal tax brackets
+
+Include Medicare levy (simplified)
+
+Calculate:
+
+Gross income
+
+Income tax
+
+Net take-home pay (baseline, no car)
+
+8. NOVATED LEASE – TAKE-HOME PAY REDUCTION ENGINE
+
+This is a key feature.
+
+Logic:
+
+Split novated costs into:
+
+Pre-tax deductions
+
+Lease payments
+
+Running costs
+
+Fully pre-tax for EVs
+
+Post-tax deductions
+
+FBT-applicable amounts (ICE/Hybrid)
+
+Calculate:
+
+Income tax saved
+
+Net after-tax cost
+
+Reduction to take-home pay
+
+Outputs (VERY IMPORTANT):
+
+Display clearly:
+
+Reduction to take-home pay:
+
+Weekly / Fortnightly / Monthly (based on user selection)
+
+Annual impact
+
+Total impact over lease term
+
+Example:
+
+“Your take-home pay reduces by $284 per fortnight”
+
+Also show:
+
+Take-home pay before car
+
+Take-home pay after novated lease
+
+Tax savings highlighted
+
+9. NORMALISING COMPARISONS ACROSS ALL METHODS
+
+To enable true apples-to-apples comparison:
+
+Finance & Outright:
+
+Convert total costs into:
+
+After-tax equivalent
+
+Cost per pay cycle
+
+Show:
+
+“To afford this cost, you’d need to earn $X pre-tax”
+
+10. GLOBAL DISPLAY TOGGLE
+
+Add a global toggle:
+
+“Show costs as:”
+
+Weekly
+
+Fortnightly
+
+Monthly
+
+Annually
+
+This toggle updates:
+
+All comparison cards
+
+Charts
+
+Cost breakdowns
+
+11. COMPARISON OUTPUT (BOTTOM SECTION)
+Visuals:
+
+Side-by-side comparison cards
+
+Bar chart comparing total lifetime cost
+
+Each card shows:
+
+Total lifetime cost
+
+Cost per pay cycle
+
+Cost per year
+
+Key insight (e.g. tax saved, interest paid)
+
+Highlight:
+
+Lowest total cost
+
+Lowest take-home pay impact
+(these may be different — make that clear)
+
+12. UX / UI PRINCIPLES
+
+Clean, modern Australian finance aesthetic
+
+Intuitive sliders
+
+Tooltips explaining:
+
+FBT
+
+Pre-tax vs post-tax
+
+Balloon payments
+
+Mobile responsive
+
+No sales language
+
+No login required
+
+13. TECH REQUIREMENTS
+
+Frontend-only (HTML/CSS/JS or React)
+
+All calculations run instantly in-browser
+
+Modular, commented code
+
+Easy to update assumptions later
+
+14. DISCLAIMER
+
+Include subtle disclaimer:
+
+“This calculator provides estimates only and does not constitute financial or tax advice.”
+
+15. END GOAL
+
+The finished product should make users think:
+
+“That’s the first time I actually understand what this car costs me each payday.”
+
+Build this now as a fully functional, polished web application.
