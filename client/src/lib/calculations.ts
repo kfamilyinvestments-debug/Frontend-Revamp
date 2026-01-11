@@ -9,6 +9,21 @@ import {
   DEFAULT_FUEL_CONSUMPTION
 } from './types';
 
+function safeNumber(value: number, fallback: number = 0): number {
+  if (value === null || value === undefined || isNaN(value) || !isFinite(value)) {
+    return fallback;
+  }
+  return value;
+}
+
+function safeDivide(numerator: number, denominator: number, fallback: number = 0): number {
+  if (denominator === 0 || isNaN(denominator) || !isFinite(denominator)) {
+    return fallback;
+  }
+  const result = numerator / denominator;
+  return safeNumber(result, fallback);
+}
+
 export function calculateAustralianTax(grossIncome: number): TaxCalculation {
   // Guard against NaN/undefined/null inputs
   const income = isNaN(grossIncome) || grossIncome === null ? 0 : Math.max(0, grossIncome);
@@ -75,14 +90,14 @@ export function calculateOutrightPurchase(inputs: UserInputs): ComparisonResult 
   // Pure cash outflow - no resale value deduction for consistent comparison
   const totalLifetimeCost = driveAwayPrice + totalRunningCosts;
   
-  const costPerYear = totalLifetimeCost / ownershipYears;
+  const costPerYear = safeDivide(totalLifetimeCost, ownershipYears);
   const costPerPayCycle = calculateCostPerPayCycle(totalLifetimeCost, ownershipYears, inputs.payFrequency);
   
   return {
     method: 'outright',
-    totalLifetimeCost,
-    costPerYear,
-    costPerPayCycle,
+    totalLifetimeCost: safeNumber(totalLifetimeCost),
+    costPerYear: safeNumber(costPerYear),
+    costPerPayCycle: safeNumber(costPerPayCycle),
     breakdown,
     keyInsight: `No interest paid. Full ownership from day one.`,
   };
@@ -114,19 +129,19 @@ export function calculateFinance(inputs: UserInputs): ComparisonResult {
   // Pure cash outflow - no resale value deduction for consistent comparison
   const totalLifetimeCost = financeDeposit + totalRepayments + totalRunningCosts;
   
-  const costPerYear = totalLifetimeCost / ownershipYears;
+  const costPerYear = safeDivide(totalLifetimeCost, ownershipYears);
   const costPerPayCycle = calculateCostPerPayCycle(totalLifetimeCost, ownershipYears, inputs.payFrequency);
   
   return {
     method: 'finance',
-    totalLifetimeCost,
-    costPerYear,
-    costPerPayCycle,
+    totalLifetimeCost: safeNumber(totalLifetimeCost),
+    costPerYear: safeNumber(costPerYear),
+    costPerPayCycle: safeNumber(costPerPayCycle),
     breakdown: { 
       ...breakdown, 
-      interest: totalInterest,
-      monthlyPayment: monthlyPayment,
-      totalFinancePayments: totalRepayments,
+      interest: safeNumber(totalInterest),
+      monthlyPayment: safeNumber(monthlyPayment),
+      totalFinancePayments: safeNumber(totalRepayments),
     },
     keyInsight: `${formatCurrency(totalInterest)} in interest over ${ownershipYears} years.`,
   };
@@ -255,7 +270,7 @@ export function calculateNovatedLease(inputs: UserInputs): ComparisonResult {
   // Total lifetime cost = take-home pay reduction over term + residual balloon payment
   const totalLifetimeCost = (annualTakeHomePayReduction * ownershipYears) + residualValue;
   
-  const costPerYear = totalLifetimeCost / ownershipYears;
+  const costPerYear = safeDivide(totalLifetimeCost, ownershipYears);
   const costPerPayCycle = calculateCostPerPayCycle(totalLifetimeCost, ownershipYears, payFrequency);
   
   // Take-home pay calculations for display
@@ -270,9 +285,9 @@ export function calculateNovatedLease(inputs: UserInputs): ComparisonResult {
   
   let keyInsight = '';
   if (isEV) {
-    keyInsight = `FBT-exempt EV! Save ${formatCurrency(totalCombinedSavings)} (tax + GST).`;
+    keyInsight = `FBT-exempt EV! Save ${formatCurrency(safeNumber(totalCombinedSavings))} (tax + GST).`;
   } else {
-    keyInsight = `Save ${formatCurrency(totalCombinedSavings)} (${formatCurrency(totalIncomeTaxSaving)} tax + ${formatCurrency(totalGstSavings)} GST).`;
+    keyInsight = `Save ${formatCurrency(safeNumber(totalCombinedSavings))} (${formatCurrency(safeNumber(totalIncomeTaxSaving))} tax + ${formatCurrency(safeNumber(totalGstSavings))} GST).`;
   }
   
   // Per-period values for display
@@ -281,45 +296,46 @@ export function calculateNovatedLease(inputs: UserInputs): ComparisonResult {
   
   return {
     method: 'novated',
-    totalLifetimeCost,
-    costPerYear,
-    costPerPayCycle,
+    totalLifetimeCost: safeNumber(totalLifetimeCost),
+    costPerYear: safeNumber(costPerYear),
+    costPerPayCycle: safeNumber(costPerPayCycle),
     breakdown: { 
       ...breakdown, 
-      interest: totalInterest, 
-      fbt: annualECM * ownershipYears,
-      balloonPayment: residualValue,
-      gstSavingsVehicle: gstOnVehicle,
-      gstSavingsRunning: totalGstSavingsRunning,
-      preTaxDeduction: annualPreTaxDeduction * ownershipYears,
-      postTaxDeduction: annualECM * ownershipYears,
-      monthlyPayment: monthlyLeasePayment,
-      totalFinancePayments: totalLeasePayments,
-      grossRentalMonthly: grossRentalMonthly,
-      inputTaxCreditMonthly: monthlyInputTaxCredit,
+      interest: safeNumber(totalInterest), 
+      fbt: safeNumber(annualECM * ownershipYears),
+      balloonPayment: safeNumber(residualValue),
+      gstSavingsVehicle: safeNumber(gstOnVehicle),
+      gstSavingsRunning: safeNumber(totalGstSavingsRunning),
+      preTaxDeduction: safeNumber(annualPreTaxDeduction * ownershipYears),
+      postTaxDeduction: safeNumber(annualECM * ownershipYears),
+      monthlyPayment: safeNumber(monthlyLeasePayment),
+      totalFinancePayments: safeNumber(totalLeasePayments),
+      grossRentalMonthly: safeNumber(grossRentalMonthly),
+      inputTaxCreditMonthly: safeNumber(monthlyInputTaxCredit),
     },
     keyInsight,
-    takeHomePayReduction,
-    taxSavings: totalIncomeTaxSaving,
-    takeHomePayBefore,
-    takeHomePayAfter,
-    preTaxDeductionPerPeriod,
-    postTaxDeductionPerPeriod,
+    takeHomePayReduction: safeNumber(takeHomePayReduction),
+    taxSavings: safeNumber(totalIncomeTaxSaving),
+    takeHomePayBefore: safeNumber(takeHomePayBefore),
+    takeHomePayAfter: safeNumber(takeHomePayAfter),
+    preTaxDeductionPerPeriod: safeNumber(preTaxDeductionPerPeriod),
+    postTaxDeductionPerPeriod: safeNumber(postTaxDeductionPerPeriod),
   };
 }
 
 function calculateCostPerPayCycle(totalCost: number, years: number, frequency: 'weekly' | 'fortnightly' | 'monthly'): number {
   const periodsPerYear = frequency === 'weekly' ? 52 : frequency === 'fortnightly' ? 26 : 12;
-  return totalCost / (years * periodsPerYear);
+  return safeDivide(totalCost, years * periodsPerYear);
 }
 
 function getPayCycleAmount(annualAmount: number, frequency: 'weekly' | 'fortnightly' | 'monthly'): number {
   const periodsPerYear = frequency === 'weekly' ? 52 : frequency === 'fortnightly' ? 26 : 12;
-  return annualAmount / periodsPerYear;
+  return safeDivide(annualAmount, periodsPerYear);
 }
 
 export function formatNumber(num: number): string {
-  return Math.round(num).toLocaleString('en-AU');
+  const safe = safeNumber(num);
+  return Math.round(safe).toLocaleString('en-AU');
 }
 
 export function formatCurrency(num: number): string {
@@ -327,11 +343,12 @@ export function formatCurrency(num: number): string {
 }
 
 export function convertToDisplayPeriod(annualAmount: number, displayPeriod: 'weekly' | 'fortnightly' | 'monthly' | 'annually'): number {
+  const safe = safeNumber(annualAmount);
   switch (displayPeriod) {
-    case 'weekly': return annualAmount / 52;
-    case 'fortnightly': return annualAmount / 26;
-    case 'monthly': return annualAmount / 12;
-    case 'annually': return annualAmount;
+    case 'weekly': return safe / 52;
+    case 'fortnightly': return safe / 26;
+    case 'monthly': return safe / 12;
+    case 'annually': return safe;
   }
 }
 
