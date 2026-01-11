@@ -180,12 +180,6 @@ export function ComparisonCard({ result, displayPeriod, isLowest, isLowestPayImp
                 <span className="font-mono">{formatCurrency(result.breakdown.fbt)}</span>
               </div>
             )}
-            {result.breakdown.resaleValue !== undefined && result.breakdown.resaleValue > 0 && result.method !== 'novated' && (
-              <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
-                <span>Less: Resale Value</span>
-                <span className="font-mono">-{formatCurrency(result.breakdown.resaleValue)}</span>
-              </div>
-            )}
             {result.breakdown.balloonPayment !== undefined && result.breakdown.balloonPayment > 0 && (
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground flex items-center gap-1">
@@ -210,6 +204,25 @@ export function ComparisonCard({ result, displayPeriod, isLowest, isLowestPayImp
             {result.keyInsight}
           </p>
         </div>
+
+        {result.method !== 'novated' && result.breakdown.resaleValue !== undefined && result.breakdown.resaleValue > 0 && (
+          <div className="pt-2 border-t">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground flex items-center gap-1">
+                Est. Resale Value
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-3 w-3 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p>Estimated value of the vehicle at end of ownership. Shown for reference only - not deducted from total cost to ensure fair comparison across all methods.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </span>
+              <span className="font-mono text-muted-foreground">{formatCurrency(result.breakdown.resaleValue)}</span>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

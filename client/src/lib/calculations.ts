@@ -70,7 +70,8 @@ export function calculateOutrightPurchase(inputs: UserInputs): ComparisonResult 
   const breakdown = calculateRunningCosts(inputs);
   
   const totalRunningCosts = breakdown.fuel + breakdown.insurance + breakdown.servicing + breakdown.tyres + breakdown.regoCtp;
-  const totalLifetimeCost = driveAwayPrice + totalRunningCosts - (breakdown.resaleValue || 0);
+  // Pure cash outflow - no resale value deduction for consistent comparison
+  const totalLifetimeCost = driveAwayPrice + totalRunningCosts;
   
   const costPerYear = totalLifetimeCost / ownershipYears;
   const costPerPayCycle = calculateCostPerPayCycle(totalLifetimeCost, ownershipYears, inputs.payFrequency);
@@ -106,7 +107,8 @@ export function calculateFinance(inputs: UserInputs): ComparisonResult {
   }
   
   const totalRunningCosts = breakdown.fuel + breakdown.insurance + breakdown.servicing + breakdown.tyres + breakdown.regoCtp;
-  const totalLifetimeCost = financeDeposit + totalRepayments + totalRunningCosts - (breakdown.resaleValue || 0);
+  // Pure cash outflow - no resale value deduction for consistent comparison
+  const totalLifetimeCost = financeDeposit + totalRepayments + totalRunningCosts;
   
   const costPerYear = totalLifetimeCost / ownershipYears;
   const costPerPayCycle = calculateCostPerPayCycle(totalLifetimeCost, ownershipYears, inputs.payFrequency);
