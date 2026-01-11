@@ -1,53 +1,46 @@
 import { Car, Fuel, Zap, Leaf } from 'lucide-react';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Vehicle, SAMPLE_VEHICLES, FuelType } from '@/lib/types';
-import { formatCurrency } from '@/lib/calculations';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { FuelType } from '@/lib/types';
 
 interface VehicleSelectorProps {
-  selectedVehicle: Vehicle;
+  fuelType: FuelType;
   driveAwayPrice: number;
-  onVehicleChange: (vehicle: Vehicle) => void;
+  onFuelTypeChange: (fuelType: FuelType) => void;
   onPriceChange: (price: number) => void;
 }
 
 function getFuelIcon(fuelType: FuelType) {
   switch (fuelType) {
-    case 'petrol':
-    case 'diesel':
-      return <Fuel className="h-4 w-4" />;
-    case 'hybrid':
-      return <Leaf className="h-4 w-4" />;
+    case 'petrol_diesel':
+      return <Fuel className="h-5 w-5" />;
+    case 'plugin_hybrid':
+      return <Leaf className="h-5 w-5" />;
     case 'ev':
-      return <Zap className="h-4 w-4" />;
+      return <Zap className="h-5 w-5" />;
   }
 }
 
 function getFuelLabel(fuelType: FuelType) {
   switch (fuelType) {
-    case 'petrol': return 'Petrol';
-    case 'diesel': return 'Diesel';
-    case 'hybrid': return 'Hybrid';
-    case 'ev': return 'Electric';
+    case 'petrol_diesel': return 'Petrol / Diesel';
+    case 'plugin_hybrid': return 'Plug-in Hybrid';
+    case 'ev': return 'Electric Vehicle';
   }
 }
 
-function getFuelBadgeVariant(fuelType: FuelType): 'default' | 'secondary' | 'outline' {
+function getFuelDescription(fuelType: FuelType) {
   switch (fuelType) {
-    case 'ev': return 'default';
-    case 'hybrid': return 'secondary';
-    default: return 'outline';
+    case 'petrol_diesel': return 'Traditional combustion engine';
+    case 'plugin_hybrid': return 'Combined petrol & electric';
+    case 'ev': return 'Fully electric, FBT exempt';
   }
 }
 
-export function VehicleSelector({ selectedVehicle, driveAwayPrice, onVehicleChange, onPriceChange }: VehicleSelectorProps) {
-  const petrolDiesel = SAMPLE_VEHICLES.filter(v => v.fuelType === 'petrol' || v.fuelType === 'diesel');
-  const hybrids = SAMPLE_VEHICLES.filter(v => v.fuelType === 'hybrid');
-  const evs = SAMPLE_VEHICLES.filter(v => v.fuelType === 'ev');
-
+export function VehicleSelector({ fuelType, driveAwayPrice, onFuelTypeChange, onPriceChange }: VehicleSelectorProps) {
   return (
     <Card>
       <CardHeader className="pb-4">
@@ -56,71 +49,42 @@ export function VehicleSelector({ selectedVehicle, driveAwayPrice, onVehicleChan
           Vehicle Details
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="vehicle-select" className="text-sm font-medium">Select Vehicle</Label>
-          <Select
-            value={selectedVehicle.id}
-            onValueChange={(value) => {
-              const vehicle = SAMPLE_VEHICLES.find(v => v.id === value);
-              if (vehicle) {
-                onVehicleChange(vehicle);
-                onPriceChange(vehicle.driveAwayPrice);
-              }
-            }}
+      <CardContent className="space-y-5">
+        <div className="space-y-3">
+          <Label className="text-sm font-medium">Vehicle Type</Label>
+          <RadioGroup
+            value={fuelType}
+            onValueChange={(value) => onFuelTypeChange(value as FuelType)}
+            className="space-y-2"
           >
-            <SelectTrigger id="vehicle-select" data-testid="select-vehicle">
-              <SelectValue placeholder="Select a vehicle" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectLabel>Petrol / Diesel</SelectLabel>
-                {petrolDiesel.map(v => (
-                  <SelectItem key={v.id} value={v.id} data-testid={`vehicle-option-${v.id}`}>
-                    <div className="flex items-center gap-2">
-                      {getFuelIcon(v.fuelType)}
-                      <span>{v.name}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-              <SelectGroup>
-                <SelectLabel>Hybrid</SelectLabel>
-                {hybrids.map(v => (
-                  <SelectItem key={v.id} value={v.id} data-testid={`vehicle-option-${v.id}`}>
-                    <div className="flex items-center gap-2">
-                      {getFuelIcon(v.fuelType)}
-                      <span>{v.name}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-              <SelectGroup>
-                <SelectLabel>Electric (EV)</SelectLabel>
-                {evs.map(v => (
-                  <SelectItem key={v.id} value={v.id} data-testid={`vehicle-option-${v.id}`}>
-                    <div className="flex items-center gap-2">
-                      {getFuelIcon(v.fuelType)}
-                      <span>{v.name}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Badge variant={getFuelBadgeVariant(selectedVehicle.fuelType)} className="gap-1">
-            {getFuelIcon(selectedVehicle.fuelType)}
-            {getFuelLabel(selectedVehicle.fuelType)}
-          </Badge>
-          {selectedVehicle.fuelType === 'ev' && (
-            <Badge variant="default" className="bg-emerald-600 hover:bg-emerald-700">
-              <Zap className="h-3 w-3 mr-1" />
-              FBT Exempt
-            </Badge>
-          )}
+            {(['petrol_diesel', 'plugin_hybrid', 'ev'] as FuelType[]).map((type) => (
+              <Label
+                key={type}
+                htmlFor={`fuel-${type}`}
+                className={`flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
+                  fuelType === type 
+                    ? 'border-primary bg-primary/5' 
+                    : 'border-input hover:bg-accent/50'
+                }`}
+              >
+                <RadioGroupItem value={type} id={`fuel-${type}`} className="sr-only" />
+                <div className={`p-2 rounded-md ${fuelType === type ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                  {getFuelIcon(type)}
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium" data-testid={`fuel-type-${type}`}>{getFuelLabel(type)}</span>
+                    {type === 'ev' && (
+                      <Badge variant="default" className="bg-emerald-600 hover:bg-emerald-700 text-xs">
+                        FBT Exempt
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">{getFuelDescription(type)}</p>
+                </div>
+              </Label>
+            ))}
+          </RadioGroup>
         </div>
 
         <div className="space-y-2">
@@ -133,11 +97,12 @@ export function VehicleSelector({ selectedVehicle, driveAwayPrice, onVehicleChan
               value={driveAwayPrice}
               onChange={(e) => onPriceChange(Number(e.target.value))}
               className="pl-7 text-right font-mono"
+              placeholder="45000"
               data-testid="input-drive-away-price"
             />
           </div>
           <p className="text-xs text-muted-foreground">
-            Default: {formatCurrency(selectedVehicle.driveAwayPrice)}
+            The total price including all on-road costs
           </p>
         </div>
       </CardContent>

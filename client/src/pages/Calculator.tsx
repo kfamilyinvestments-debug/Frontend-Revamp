@@ -12,10 +12,10 @@ import { DisplayToggle } from '@/components/DisplayToggle';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
-  Vehicle, 
-  SAMPLE_VEHICLES, 
+  FuelType,
   UserInputs,
-  ComparisonResult
+  ComparisonResult,
+  DEFAULT_SERVICING_COSTS
 } from '@/lib/types';
 import { 
   calculateAustralianTax, 
@@ -25,14 +25,13 @@ import {
 } from '@/lib/calculations';
 
 export default function Calculator() {
-  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle>(SAMPLE_VEHICLES[0]);
-  const [driveAwayPrice, setDriveAwayPrice] = useState(SAMPLE_VEHICLES[0].driveAwayPrice);
+  const [fuelType, setFuelType] = useState<FuelType>('petrol_diesel');
+  const [driveAwayPrice, setDriveAwayPrice] = useState(45000);
   const [ownershipYears, setOwnershipYears] = useState(3);
   const [kmPerYear, setKmPerYear] = useState(15000);
   const [fuelPrice, setFuelPrice] = useState(1.85);
-  const [electricityPrice, setElectricityPrice] = useState(0.30);
   const [insuranceAnnual, setInsuranceAnnual] = useState(1200);
-  const [servicingAnnual, setServicingAnnual] = useState(450);
+  const [servicingAnnual, setServicingAnnual] = useState(550);
   const [tyresAnnual, setTyresAnnual] = useState(800);
   const [regoCtpAnnual, setRegoCtpAnnual] = useState(900);
   const [annualSalary, setAnnualSalary] = useState(100000);
@@ -48,11 +47,9 @@ export default function Calculator() {
   });
   const [displayPeriod, setDisplayPeriod] = useState<'weekly' | 'fortnightly' | 'monthly' | 'annually'>('annually');
 
-  const handleVehicleChange = useCallback((vehicle: Vehicle) => {
-    setSelectedVehicle(vehicle);
-    setServicingAnnual(vehicle.averageServicing);
-    const baseInsurance = Math.round(vehicle.driveAwayPrice * 0.025);
-    setInsuranceAnnual(Math.max(800, Math.min(baseInsurance, 3500)));
+  const handleFuelTypeChange = useCallback((newFuelType: FuelType) => {
+    setFuelType(newFuelType);
+    setServicingAnnual(DEFAULT_SERVICING_COSTS[newFuelType]);
   }, []);
 
   const handleToggle = useCallback((method: 'outright' | 'finance' | 'novated', enabled: boolean) => {
@@ -60,12 +57,11 @@ export default function Calculator() {
   }, []);
 
   const userInputs: UserInputs = useMemo(() => ({
-    vehicle: selectedVehicle,
+    fuelType,
     driveAwayPrice,
     ownershipYears,
     kmPerYear,
     fuelPrice,
-    electricityPrice,
     insuranceAnnual,
     servicingAnnual,
     tyresAnnual,
@@ -79,12 +75,11 @@ export default function Calculator() {
     comparisonMethods,
     displayPeriod,
   }), [
-    selectedVehicle,
+    fuelType,
     driveAwayPrice,
     ownershipYears,
     kmPerYear,
     fuelPrice,
-    electricityPrice,
     insuranceAnnual,
     servicingAnnual,
     tyresAnnual,
@@ -151,9 +146,9 @@ export default function Calculator() {
             <ScrollArea className="lg:h-[calc(100vh-8rem)]">
               <div className="space-y-4 pb-6 pr-2">
                 <VehicleSelector
-                  selectedVehicle={selectedVehicle}
+                  fuelType={fuelType}
                   driveAwayPrice={driveAwayPrice}
-                  onVehicleChange={handleVehicleChange}
+                  onFuelTypeChange={handleFuelTypeChange}
                   onPriceChange={setDriveAwayPrice}
                 />
                 
@@ -165,15 +160,14 @@ export default function Calculator() {
                 />
 
                 <RunningCosts
-                  fuelType={selectedVehicle.fuelType}
+                  fuelType={fuelType}
                   fuelPrice={fuelPrice}
-                  electricityPrice={electricityPrice}
+                  kmPerYear={kmPerYear}
                   insuranceAnnual={insuranceAnnual}
                   servicingAnnual={servicingAnnual}
                   tyresAnnual={tyresAnnual}
                   regoCtpAnnual={regoCtpAnnual}
                   onFuelPriceChange={setFuelPrice}
-                  onElectricityPriceChange={setElectricityPrice}
                   onInsuranceChange={setInsuranceAnnual}
                   onServicingChange={setServicingAnnual}
                   onTyresChange={setTyresAnnual}
@@ -198,7 +192,7 @@ export default function Calculator() {
                 <FinanceOptions
                   showFinance={comparisonMethods.finance}
                   showNovated={comparisonMethods.novated}
-                  fuelType={selectedVehicle.fuelType}
+                  fuelType={fuelType}
                   financeInterestRate={financeInterestRate}
                   financeDeposit={financeDeposit}
                   novatedInterestRate={novatedInterestRate}

@@ -1,21 +1,11 @@
-export type FuelType = 'petrol' | 'diesel' | 'hybrid' | 'ev';
-
-export interface Vehicle {
-  id: string;
-  name: string;
-  fuelType: FuelType;
-  driveAwayPrice: number;
-  fuelConsumption: number;
-  averageServicing: number;
-}
+export type FuelType = 'petrol_diesel' | 'plugin_hybrid' | 'ev';
 
 export interface UserInputs {
-  vehicle: Vehicle;
+  fuelType: FuelType;
   driveAwayPrice: number;
   ownershipYears: number;
   kmPerYear: number;
   fuelPrice: number;
-  electricityPrice: number;
   insuranceAnnual: number;
   servicingAnnual: number;
   tyresAnnual: number;
@@ -35,6 +25,7 @@ export interface UserInputs {
 }
 
 export interface CostBreakdown {
+  vehicleCost: number;
   depreciation: number;
   fuel: number;
   insurance: number;
@@ -44,6 +35,7 @@ export interface CostBreakdown {
   interest?: number;
   fbt?: number;
   balloonPayment?: number;
+  resaleValue?: number;
 }
 
 export interface ComparisonResult {
@@ -66,80 +58,19 @@ export interface TaxCalculation {
   netTakeHomePay: number;
 }
 
-export const SAMPLE_VEHICLES: Vehicle[] = [
-  {
-    id: 'corolla-petrol',
-    name: 'Toyota Corolla Ascent (Petrol)',
-    fuelType: 'petrol',
-    driveAwayPrice: 32990,
-    fuelConsumption: 6.5,
-    averageServicing: 450,
-  },
-  {
-    id: 'mazda3-petrol',
-    name: 'Mazda 3 G20 Pure (Petrol)',
-    fuelType: 'petrol',
-    driveAwayPrice: 35990,
-    fuelConsumption: 6.2,
-    averageServicing: 480,
-  },
-  {
-    id: 'hilux-diesel',
-    name: 'Toyota HiLux SR (Diesel)',
-    fuelType: 'diesel',
-    driveAwayPrice: 55490,
-    fuelConsumption: 7.8,
-    averageServicing: 650,
-  },
-  {
-    id: 'ranger-diesel',
-    name: 'Ford Ranger XL (Diesel)',
-    fuelType: 'diesel',
-    driveAwayPrice: 52990,
-    fuelConsumption: 7.6,
-    averageServicing: 680,
-  },
-  {
-    id: 'corolla-hybrid',
-    name: 'Toyota Corolla Hybrid (Hybrid)',
-    fuelType: 'hybrid',
-    driveAwayPrice: 36990,
-    fuelConsumption: 4.2,
-    averageServicing: 400,
-  },
-  {
-    id: 'camry-hybrid',
-    name: 'Toyota Camry Hybrid (Hybrid)',
-    fuelType: 'hybrid',
-    driveAwayPrice: 45990,
-    fuelConsumption: 4.5,
-    averageServicing: 450,
-  },
-  {
-    id: 'model3-ev',
-    name: 'Tesla Model 3 (EV)',
-    fuelType: 'ev',
-    driveAwayPrice: 59900,
-    fuelConsumption: 14.0,
-    averageServicing: 250,
-  },
-  {
-    id: 'byd-seal-ev',
-    name: 'BYD Seal Premium (EV)',
-    fuelType: 'ev',
-    driveAwayPrice: 65990,
-    fuelConsumption: 15.2,
-    averageServicing: 280,
-  },
-  {
-    id: 'mg4-ev',
-    name: 'MG4 Excite (EV)',
-    fuelType: 'ev',
-    driveAwayPrice: 41990,
-    fuelConsumption: 16.5,
-    averageServicing: 220,
-  },
-];
+export const ATO_EV_COST_PER_KM = 0.042;
+
+export const DEFAULT_FUEL_CONSUMPTION: Record<FuelType, number> = {
+  petrol_diesel: 8.5,
+  plugin_hybrid: 6.0,
+  ev: 0,
+};
+
+export const DEFAULT_SERVICING_COSTS: Record<FuelType, number> = {
+  petrol_diesel: 550,
+  plugin_hybrid: 450,
+  ev: 250,
+};
 
 export const ATO_RESIDUAL_VALUES: Record<number, number> = {
   1: 0.6556,

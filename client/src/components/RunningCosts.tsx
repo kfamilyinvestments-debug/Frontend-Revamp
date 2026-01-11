@@ -1,21 +1,20 @@
-import { DollarSign, Fuel, Shield, Wrench, CircleDot, FileText, HelpCircle } from 'lucide-react';
+import { DollarSign, Fuel, Shield, Wrench, CircleDot, FileText, HelpCircle, Zap } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { FuelType } from '@/lib/types';
+import { FuelType, ATO_EV_COST_PER_KM, DEFAULT_FUEL_CONSUMPTION } from '@/lib/types';
 
 interface RunningCostsProps {
   fuelType: FuelType;
   fuelPrice: number;
-  electricityPrice: number;
+  kmPerYear: number;
   insuranceAnnual: number;
   servicingAnnual: number;
   tyresAnnual: number;
   regoCtpAnnual: number;
   onFuelPriceChange: (price: number) => void;
-  onElectricityPriceChange: (price: number) => void;
   onInsuranceChange: (amount: number) => void;
   onServicingChange: (amount: number) => void;
   onTyresChange: (amount: number) => void;
@@ -85,19 +84,21 @@ function CostInput({ label, value, onChange, min, max, step, prefix = '$', suffi
 export function RunningCosts({
   fuelType,
   fuelPrice,
-  electricityPrice,
+  kmPerYear,
   insuranceAnnual,
   servicingAnnual,
   tyresAnnual,
   regoCtpAnnual,
   onFuelPriceChange,
-  onElectricityPriceChange,
   onInsuranceChange,
   onServicingChange,
   onTyresChange,
   onRegoCtpChange,
 }: RunningCostsProps) {
   const isEV = fuelType === 'ev';
+  const estimatedAnnualFuelCost = isEV 
+    ? ATO_EV_COST_PER_KM * kmPerYear 
+    : (DEFAULT_FUEL_CONSUMPTION[fuelType] / 100) * kmPerYear * fuelPrice;
 
   return (
     <Card>
@@ -109,20 +110,18 @@ export function RunningCosts({
       </CardHeader>
       <CardContent className="space-y-5">
         {isEV ? (
-          <CostInput
-            label="Electricity Price"
-            value={electricityPrice}
-            onChange={onElectricityPriceChange}
-            min={0.15}
-            max={0.50}
-            step={0.01}
-            prefix="$"
-            suffix="/kWh"
-            icon={<Fuel className="h-4 w-4 text-muted-foreground" />}
-            tooltip="Average cost per kWh for home charging"
-            defaultHint="Average: $0.30/kWh"
-            testId="input-electricity-price"
-          />
+          <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800">
+            <div className="flex items-center gap-2 mb-1">
+              <Zap className="h-4 w-4 text-emerald-600" />
+              <span className="font-medium text-emerald-700 dark:text-emerald-400">Electricity Cost</span>
+            </div>
+            <p className="text-sm text-emerald-700 dark:text-emerald-400">
+              <strong>4.2 cents per km</strong> (ATO guideline rate)
+            </p>
+            <p className="text-xs text-emerald-600 dark:text-emerald-500 mt-1">
+              Est. ${Math.round(estimatedAnnualFuelCost).toLocaleString()}/year at {kmPerYear.toLocaleString()} km
+            </p>
+          </div>
         ) : (
           <CostInput
             label="Fuel Price"
@@ -134,8 +133,8 @@ export function RunningCosts({
             prefix="$"
             suffix="/L"
             icon={<Fuel className="h-4 w-4 text-muted-foreground" />}
-            tooltip={`Average cost per litre of ${fuelType === 'diesel' ? 'diesel' : 'petrol'}`}
-            defaultHint="Average: $1.85/L"
+            tooltip={`Average cost per litre of fuel`}
+            defaultHint={`Est. $${Math.round(estimatedAnnualFuelCost).toLocaleString()}/year at ${DEFAULT_FUEL_CONSUMPTION[fuelType]}L/100km`}
             testId="input-fuel-price"
           />
         )}

@@ -132,10 +132,12 @@ export function ComparisonCard({ result, displayPeriod, isLowest, isLowestPayImp
         <div className="space-y-2 pt-2 border-t">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Cost Breakdown</p>
           <div className="space-y-1 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Depreciation</span>
-              <span className="font-mono">{formatCurrency(result.breakdown.depreciation)}</span>
-            </div>
+            {result.method === 'outright' && (
+              <div className="flex justify-between font-medium">
+                <span>Vehicle Purchase</span>
+                <span className="font-mono">{formatCurrency(result.breakdown.vehicleCost)}</span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span className="text-muted-foreground">Fuel/Electricity</span>
               <span className="font-mono">{formatCurrency(result.breakdown.fuel)}</span>
@@ -160,6 +162,28 @@ export function ComparisonCard({ result, displayPeriod, isLowest, isLowestPayImp
               <div className="flex justify-between text-amber-600 dark:text-amber-400">
                 <span>Interest</span>
                 <span className="font-mono">{formatCurrency(result.breakdown.interest)}</span>
+              </div>
+            )}
+            {result.breakdown.fbt !== undefined && result.breakdown.fbt > 0 && (
+              <div className="flex justify-between text-amber-600 dark:text-amber-400">
+                <span className="flex items-center gap-1">
+                  FBT
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-3 w-3 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>Fringe Benefits Tax - additional tax on non-cash employee benefits like company cars.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </span>
+                <span className="font-mono">{formatCurrency(result.breakdown.fbt)}</span>
+              </div>
+            )}
+            {result.breakdown.resaleValue !== undefined && result.breakdown.resaleValue > 0 && result.method !== 'novated' && (
+              <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                <span>Less: Resale Value</span>
+                <span className="font-mono">-{formatCurrency(result.breakdown.resaleValue)}</span>
               </div>
             )}
             {result.breakdown.balloonPayment !== undefined && result.breakdown.balloonPayment > 0 && (

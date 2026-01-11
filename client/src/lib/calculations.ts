@@ -4,7 +4,9 @@ import {
   TaxCalculation, 
   CostBreakdown,
   ATO_RESIDUAL_VALUES,
-  DEPRECIATION_RATES
+  DEPRECIATION_RATES,
+  ATO_EV_COST_PER_KM,
+  DEFAULT_FUEL_CONSUMPTION
 } from './types';
 
 export function calculateAustralianTax(grossIncome: number): TaxCalculation {
@@ -34,28 +36,32 @@ export function calculateAustralianTax(grossIncome: number): TaxCalculation {
 }
 
 export function calculateRunningCosts(inputs: UserInputs): CostBreakdown {
-  const { vehicle, kmPerYear, ownershipYears, fuelPrice, electricityPrice, insuranceAnnual, servicingAnnual, tyresAnnual, regoCtpAnnual, driveAwayPrice } = inputs;
+  const { fuelType, kmPerYear, ownershipYears, fuelPrice, insuranceAnnual, servicingAnnual, tyresAnnual, regoCtpAnnual, driveAwayPrice } = inputs;
   
   let fuelCost = 0;
-  if (vehicle.fuelType === 'ev') {
-    fuelCost = (vehicle.fuelConsumption / 100) * kmPerYear * electricityPrice * ownershipYears;
+  if (fuelType === 'ev') {
+    fuelCost = ATO_EV_COST_PER_KM * kmPerYear * ownershipYears;
   } else {
-    fuelCost = (vehicle.fuelConsumption / 100) * kmPerYear * fuelPrice * ownershipYears;
+    const consumption = DEFAULT_FUEL_CONSUMPTION[fuelType];
+    fuelCost = (consumption / 100) * kmPerYear * fuelPrice * ownershipYears;
   }
   
   const depreciationRate = DEPRECIATION_RATES[ownershipYears] || 0.58;
   const depreciation = driveAwayPrice * depreciationRate;
+  const resaleValue = driveAwayPrice - depreciation;
   
   const tyresNeeded = Math.ceil((kmPerYear * ownershipYears) / 45000);
   const totalTyres = tyresAnnual * tyresNeeded;
   
   return {
+    vehicleCost: driveAwayPrice,
     depreciation,
     fuel: fuelCost,
     insurance: insuranceAnnual * ownershipYears,
     servicing: servicingAnnual * ownershipYears,
     tyres: totalTyres,
     regoCtp: regoCtpAnnual * ownershipYears,
+    resaleValue,
   };
 }
 
@@ -63,9 +69,8 @@ export function calculateOutrightPurchase(inputs: UserInputs): ComparisonResult 
   const { driveAwayPrice, ownershipYears } = inputs;
   const breakdown = calculateRunningCosts(inputs);
   
-  const resaleValue = driveAwayPrice - breakdown.depreciation;
   const totalRunningCosts = breakdown.fuel + breakdown.insurance + breakdown.servicing + breakdown.tyres + breakdown.regoCtp;
-  const totalLifetimeCost = driveAwayPrice + totalRunningCosts - resaleValue;
+  const totalLifetimeCost = driveAwayPrice + totalRunningCosts - (breakdown.resaleValue || 0);
   
   const costPerYear = totalLifetimeCost / ownershipYears;
   const costPerPayCycle = calculateCostPerPayCycle(totalLifetimeCost, ownershipYears, inputs.payFrequency);
@@ -88,13 +93,20 @@ export function calculateFinance(inputs: UserInputs): ComparisonResult {
   const monthlyRate = financeInterestRate / 100 / 12;
   const numPayments = ownershipYears * 12;
   
-  const monthlyPayment = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1);
-  const totalRepayments = monthlyPayment * numPayments;
-  const totalInterest = totalRepayments - loanAmount;
+  let monthlyPayment = 0;
+  let totalRepayments = 0;
+  let totalInterest = 0;
   
-  const resaleValue = driveAwayPrice - breakdown.depreciation;
+  if (monthlyRate > 0 && loanAmount > 0) {
+    monthlyPayment = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1);
+    totalRepayments = monthlyPayment * numPayments;
+    totalInterest = totalRepayments - loanAmount;
+  } else {
+    totalRepayments = loanAmount;
+  }
+  
   const totalRunningCosts = breakdown.fuel + breakdown.insurance + breakdown.servicing + breakdown.tyres + breakdown.regoCtp;
-  const totalLifetimeCost = financeDeposit + totalRepayments + totalRunningCosts - resaleValue;
+  const totalLifetimeCost = financeDeposit + totalRepayments + totalRunningCosts - (breakdown.resaleValue || 0);
   
   const costPerYear = totalLifetimeCost / ownershipYears;
   const costPerPayCycle = calculateCostPerPayCycle(totalLifetimeCost, ownershipYears, inputs.payFrequency);
@@ -105,37 +117,44 @@ export function calculateFinance(inputs: UserInputs): ComparisonResult {
     costPerYear,
     costPerPayCycle,
     breakdown: { ...breakdown, interest: totalInterest },
-    keyInsight: `$${formatNumber(totalInterest)} in interest over ${ownershipYears} years.`,
+    keyInsight: `${formatCurrency(totalInterest)} in interest over ${ownershipYears} years.`,
   };
 }
 
 export function calculateNovatedLease(inputs: UserInputs): ComparisonResult {
-  const { driveAwayPrice, ownershipYears, novatedInterestRate, vehicle, workUseOver50, annualSalary, payFrequency } = inputs;
+  const { driveAwayPrice, ownershipYears, novatedInterestRate, fuelType, workUseOver50, annualSalary, payFrequency } = inputs;
   const breakdown = calculateRunningCosts(inputs);
   
   const residualRate = ATO_RESIDUAL_VALUES[ownershipYears] || 0.2838;
   const residualValue = driveAwayPrice * residualRate;
   
-  const financedAmount = driveAwayPrice - residualValue;
+  const financedAmount = driveAwayPrice;
   const monthlyRate = novatedInterestRate / 100 / 12;
   const numPayments = ownershipYears * 12;
   
-  const monthlyLeasePayment = financedAmount * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1);
-  const totalLeasePayments = monthlyLeasePayment * numPayments;
-  const totalInterest = totalLeasePayments - financedAmount;
+  let monthlyLeasePayment = 0;
+  let totalLeasePayments = 0;
+  
+  if (monthlyRate > 0) {
+    monthlyLeasePayment = (financedAmount - residualValue / Math.pow(1 + monthlyRate, numPayments)) * 
+      (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1);
+    totalLeasePayments = monthlyLeasePayment * numPayments;
+  } else {
+    totalLeasePayments = financedAmount - residualValue;
+  }
+  
+  const totalInterest = totalLeasePayments - (financedAmount - residualValue);
   
   const totalRunningCosts = breakdown.fuel + breakdown.insurance + breakdown.servicing + breakdown.tyres + breakdown.regoCtp;
   const annualRunningCosts = totalRunningCosts / ownershipYears;
   const annualLeasePayment = totalLeasePayments / ownershipYears;
   
-  let annualPreTaxDeduction = 0;
+  const isEV = fuelType === 'ev';
+  
+  let annualPreTaxDeduction = annualLeasePayment + annualRunningCosts;
   let annualFBT = 0;
   
-  const isEV = vehicle.fuelType === 'ev';
-  
-  if (isEV) {
-    annualPreTaxDeduction = annualLeasePayment + annualRunningCosts;
-  } else {
+  if (!isEV) {
     const statutoryFBTRate = 0.20;
     const grossUpFactor = 2.0802;
     const fbtRate = 0.47;
@@ -147,18 +166,17 @@ export function calculateNovatedLease(inputs: UserInputs): ComparisonResult {
     
     const grossedUpValue = fbtableValue * grossUpFactor;
     annualFBT = grossedUpValue * fbtRate;
-    
-    annualPreTaxDeduction = annualLeasePayment + annualRunningCosts;
   }
   
   const baselineTax = calculateAustralianTax(annualSalary);
-  const reducedSalary = annualSalary - annualPreTaxDeduction;
+  const reducedSalary = Math.max(0, annualSalary - annualPreTaxDeduction);
   const novatedTax = calculateAustralianTax(reducedSalary);
   
-  const annualTaxSaving = baselineTax.incomeTax + baselineTax.medicareLevy - novatedTax.incomeTax - novatedTax.medicareLevy;
+  const annualTaxSaving = (baselineTax.incomeTax + baselineTax.medicareLevy) - (novatedTax.incomeTax + novatedTax.medicareLevy);
   const totalTaxSaving = annualTaxSaving * ownershipYears;
   
   const annualNetCost = annualPreTaxDeduction - annualTaxSaving + annualFBT;
+  
   const totalLifetimeCost = (annualNetCost * ownershipYears) + residualValue;
   
   const costPerYear = totalLifetimeCost / ownershipYears;
@@ -171,9 +189,9 @@ export function calculateNovatedLease(inputs: UserInputs): ComparisonResult {
   
   let keyInsight = '';
   if (isEV) {
-    keyInsight = `FBT-exempt EV! Save $${formatNumber(totalTaxSaving)} in tax.`;
+    keyInsight = `FBT-exempt EV! Save ${formatCurrency(totalTaxSaving)} in tax.`;
   } else {
-    keyInsight = `Tax savings of $${formatNumber(totalTaxSaving)} over ${ownershipYears} years.`;
+    keyInsight = `Tax savings of ${formatCurrency(totalTaxSaving)} over ${ownershipYears} years.`;
   }
   
   return {
@@ -181,7 +199,12 @@ export function calculateNovatedLease(inputs: UserInputs): ComparisonResult {
     totalLifetimeCost,
     costPerYear,
     costPerPayCycle,
-    breakdown: { ...breakdown, interest: totalInterest, fbt: annualFBT * ownershipYears, balloonPayment: residualValue },
+    breakdown: { 
+      ...breakdown, 
+      interest: totalInterest > 0 ? totalInterest : 0, 
+      fbt: annualFBT * ownershipYears, 
+      balloonPayment: residualValue 
+    },
     keyInsight,
     takeHomePayReduction,
     taxSavings: totalTaxSaving,
