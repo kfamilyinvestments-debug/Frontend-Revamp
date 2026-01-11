@@ -11,6 +11,7 @@ import { CostChart } from '@/components/CostChart';
 import { DisplayToggle } from '@/components/DisplayToggle';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { 
   FuelType,
   UserInputs,
@@ -145,9 +146,10 @@ export default function Calculator() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex flex-col lg:flex-row gap-6">
           <aside className="w-full lg:w-96 lg:flex-shrink-0">
-            <ScrollArea className="lg:h-[calc(100vh-8rem)]">
-              <div className="space-y-4 pb-6 pr-2">
-                <VehicleSelector
+            <ErrorBoundary fallbackMessage="An error occurred in the input panel. Try refreshing the page.">
+              <ScrollArea className="lg:h-[calc(100vh-8rem)]">
+                <div className="space-y-4 pb-6 pr-2">
+                  <VehicleSelector
                   fuelType={fuelType}
                   driveAwayPrice={driveAwayPrice}
                   onFuelTypeChange={handleFuelTypeChange}
@@ -205,8 +207,9 @@ export default function Calculator() {
                   onNovatedInterestChange={setNovatedInterestRate}
                   onWorkUseChange={setWorkUseOver50}
                 />
-              </div>
-            </ScrollArea>
+                </div>
+              </ScrollArea>
+            </ErrorBoundary>
           </aside>
 
           <div className="flex-1 space-y-6">
