@@ -74,15 +74,22 @@ client/src/
 Located in `client/src/lib/calculations.ts`:
 - **calculateAustralianTax()**: 2024-25 Australian tax brackets + Medicare levy
 - **calculateRunningCosts()**: Fuel, insurance, servicing, tyres, rego over ownership period
-- **calculateOutrightPurchase()**: Upfront cost + running costs - resale value
-- **calculateFinance()**: Loan amortization + interest + running costs
-- **calculateNovatedLease()**: Pre-tax deductions, FBT calculations, take-home pay impact
+- **calculateOutrightPurchase()**: Pure cash outflow (vehicle + running costs)
+- **calculateFinance()**: Loan amortization + interest + running costs (pure cash outflow)
+- **calculateNovatedLease()**: GST-free pricing, ECM post-tax deductions, take-home pay impact
 
 ### Financial Assumptions
-- ATO minimum residual values for novated leases (1-5 year terms)
+- ATO minimum residual values for novated leases (1-5 year terms): 65.63%, 56.25%, 46.88%, 37.50%, 28.13%
 - Depreciation rates by ownership period
-- Statutory FBT method with optional Operating Cost method for >50% work use
 - Full FBT exemption for EVs
+- ECM (Employee Contribution Method) for non-EV: 20% of vehicle base value as post-tax deduction
+
+### Novated Lease GST Treatment
+- Vehicle price: GST removed (employee pays ex-GST price)
+- Running costs: GST removed from fuel, insurance, servicing, tyres (rego/CTP has no GST)
+- Financed amount: Ex-GST vehicle price + on-road costs (stamp duty + rego)
+- Residual: ATO minimum percentage applied to financed amount
+- ECM: 20% of vehicle base value (GST-inclusive) as post-tax deduction to eliminate FBT
 
 ## Running the Application
 The application runs on port 5000:
@@ -91,8 +98,21 @@ npm run dev
 ```
 
 ## Recent Changes
+- GST Treatment Fix (Jan 2026): Updated novated lease to correctly handle GST
+  - Vehicle price ex-GST used for lease financing
+  - Running costs ex-GST (fuel, insurance, servicing, tyres)
+  - ECM (Employee Contribution Method) replaces FBT calculation
+  - GST savings displayed in breakdown (vehicle + running costs)
+  - Residual calculated on financed amount (ex-GST vehicle + on-roads)
+  - Added disclaimer that estimates are based on typical on-road costs
+  
+- Cost Comparison Consistency (Jan 2026): Pure cash outflow basis
+  - Removed resale value deduction from outright/finance totals
+  - Resale value shown as informational reference only
+  - Fair comparison across all three methods
+
 - Initial implementation (Jan 2026): Complete calculator with all features
-  - Vehicle selector with sample vehicles
+  - Vehicle selector with fuel types (Petrol/Diesel, Plug-in Hybrid, EV)
   - Usage and running cost inputs
   - Salary/tax profile with Australian tax calculations
   - Three comparison methods with toggles
