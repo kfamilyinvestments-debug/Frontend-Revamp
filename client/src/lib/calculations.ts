@@ -154,17 +154,6 @@ export function calculateNovatedLease(inputs: UserInputs): ComparisonResult {
   const gstOnVehicle = vehicleBaseValue * (10 / 110);
   const vehiclePriceExGst = vehicleBaseValue - gstOnVehicle;
   
-  // GST SAVINGS ON RUNNING COSTS
-  // Insurance, servicing, tyres, fuel have GST - rego/CTP does not
-  const gstableRunningCostsAnnual = (breakdown.fuel + breakdown.insurance + breakdown.servicing + breakdown.tyres) / ownershipYears;
-  const nonGstableRunningCostsAnnual = breakdown.regoCtp / ownershipYears;
-  
-  // Running costs ex-GST
-  const gstOnRunningCostsAnnual = gstableRunningCostsAnnual * (10 / 110);
-  const runningCostsExGstAnnual = (gstableRunningCostsAnnual - gstOnRunningCostsAnnual) + nonGstableRunningCostsAnnual;
-  
-  const totalGstSavingsRunning = gstOnRunningCostsAnnual * ownershipYears;
-  
   // FINANCED AMOUNT: Ex-GST vehicle price + on-road costs (stamp duty + rego)
   // This is what gets financed in a novated lease
   const onRoadCosts = estimatedStampDuty + estimatedRegoInDriveaway;
@@ -177,6 +166,7 @@ export function calculateNovatedLease(inputs: UserInputs): ComparisonResult {
   const monthlyRate = novatedInterestRate / 100 / 12;
   const numPayments = ownershipYears * 12;
   
+  // MONTHLY LEASE PAYMENT (ex-GST, fixed)
   let monthlyLeasePayment = 0;
   let totalLeasePayments = 0;
   
@@ -191,17 +181,33 @@ export function calculateNovatedLease(inputs: UserInputs): ComparisonResult {
   }
   
   const totalInterest = Math.max(0, totalLeasePayments - (financedAmount - residualValue));
-  const annualLeasePayment = totalLeasePayments / ownershipYears;
+  
+  // RUNNING COSTS - calculate ex-GST and GST components
+  // Insurance, servicing, tyres, fuel have GST - rego/CTP does not
+  const gstableRunningCostsAnnual = (breakdown.fuel + breakdown.insurance + breakdown.servicing + breakdown.tyres) / ownershipYears;
+  const nonGstableRunningCostsAnnual = breakdown.regoCtp / ownershipYears;
+  
+  // Running costs ex-GST (monthly)
+  const runningCostsExGstMonthly = ((gstableRunningCostsAnnual / 1.1) + nonGstableRunningCostsAnnual) / 12;
+  const runningCostsGstMonthly = (gstableRunningCostsAnnual - gstableRunningCostsAnnual / 1.1) / 12;
+  
+  // Admin fee (typical $20/month, ex-GST)
+  const adminFeeMonthly = 20;
+  
+  // GROSS RENTAL (monthly, inc GST)
+  // = (lease payment + running costs ex-GST + admin) + GST on these items
+  const exGstTotalMonthly = monthlyLeasePayment + runningCostsExGstMonthly + adminFeeMonthly;
+  const gstOnLeaseAndAdmin = (monthlyLeasePayment + adminFeeMonthly) * 0.1;
+  const grossRentalMonthly = exGstTotalMonthly + gstOnLeaseAndAdmin + runningCostsGstMonthly;
   
   // FBT CALCULATION using Employee Contribution Method (ECM)
-  // FBT is calculated on the vehicle base value (GST-inclusive, excluding on-roads)
-  // The employee makes a post-tax contribution equal to the fringe benefit value
-  let annualECM = 0; // Employee Contribution Method - post-tax deduction
+  // ECM = 20% of vehicle base value (GST-inclusive, excluding on-roads)
+  // This matches the quote: $55,530 × 20% = $11,106 annual
+  let annualECM = 0;
+  let monthlyECM = 0;
   
   if (!isEV) {
     const statutoryFBTRate = 0.20;
-    // Statutory fringe benefit value = 20% of vehicle base value (incl GST, excl on-roads)
-    // This matches the quote where base value $55,530 * 20% = $11,106 annual ECM
     let fringeBenefitValue = vehicleBaseValue * statutoryFBTRate;
     
     // If >50% work use, operating cost method can reduce FBT by 50%
@@ -209,25 +215,40 @@ export function calculateNovatedLease(inputs: UserInputs): ComparisonResult {
       fringeBenefitValue = fringeBenefitValue * 0.5;
     }
     
-    // ECM: Employee pays the fringe benefit value as a post-tax deduction
-    // This eliminates the FBT liability entirely
     annualECM = fringeBenefitValue;
+    monthlyECM = annualECM / 12;
   }
   
-  // PRE-TAX DEDUCTION: Lease payments + running costs (all ex-GST)
-  const annualPreTaxDeduction = annualLeasePayment + runningCostsExGstAnnual;
+  // PAYROLL SPLIT (the key calculation matching the quote)
+  // Formula: Gross Rental = Pre-Tax Salary Sacrifice + ECM (Post-Tax) + Input Tax Credit
+  // Where: Pre-Tax = (Gross Rental - ECM) / 1.1
+  //        Input Tax Credit = (Gross Rental - ECM) - Pre-Tax = Pre-Tax × 0.1
   
-  // TAX SAVINGS from salary sacrifice
+  const remainderAfterECM = grossRentalMonthly - monthlyECM;
+  const monthlyPreTaxDeduction = remainderAfterECM / 1.1;
+  const monthlyInputTaxCredit = remainderAfterECM - monthlyPreTaxDeduction; // = Pre-Tax × 0.1
+  
+  // Annualize
+  const annualPreTaxDeduction = monthlyPreTaxDeduction * 12;
+  const annualInputTaxCredit = monthlyInputTaxCredit * 12;
+  const annualGrossRental = grossRentalMonthly * 12;
+  
+  // TAX SAVINGS from salary sacrifice (only on the pre-tax portion)
+  // Note: Novated lease quotes typically show income tax savings only (not Medicare levy)
+  // This matches the PDF quote which shows $130/mo tax saving for $88k salary
   const baselineTax = calculateAustralianTax(annualSalary);
   const reducedTaxableIncome = Math.max(0, annualSalary - annualPreTaxDeduction);
   const novatedTax = calculateAustralianTax(reducedTaxableIncome);
   
-  const annualIncomeTaxSaving = (baselineTax.incomeTax + baselineTax.medicareLevy) - (novatedTax.incomeTax + novatedTax.medicareLevy);
+  // Use income tax only (not Medicare) to match real-world quote methodology
+  const annualIncomeTaxSaving = baselineTax.incomeTax - novatedTax.incomeTax;
   const totalIncomeTaxSaving = annualIncomeTaxSaving * ownershipYears;
   
-  // TOTAL REDUCTION TO TAKE-HOME PAY (what the employee actually pays per year)
-  // = Pre-tax deduction - income tax savings + ECM (post-tax deduction)
-  const annualTakeHomePayReduction = annualPreTaxDeduction - annualIncomeTaxSaving + annualECM;
+  // TOTAL REDUCTION TO TAKE-HOME PAY
+  // = (Pre-Tax Deduction - Income Tax Savings) + ECM
+  // The pre-tax deduction reduces taxable income, providing tax savings
+  // Quote shows: $1,201.29/mo = ($405.80 - $130) + $925.50
+  const annualTakeHomePayReduction = (annualPreTaxDeduction - annualIncomeTaxSaving) + annualECM;
   
   // Total lifetime cost = take-home pay reduction over term + residual balloon payment
   const totalLifetimeCost = (annualTakeHomePayReduction * ownershipYears) + residualValue;
@@ -240,7 +261,8 @@ export function calculateNovatedLease(inputs: UserInputs): ComparisonResult {
   const takeHomePayReduction = getPayCycleAmount(annualTakeHomePayReduction, payFrequency);
   const takeHomePayAfter = takeHomePayBefore - takeHomePayReduction;
   
-  // Combined savings: income tax + GST savings
+  // GST savings shown separately
+  const totalGstSavingsRunning = annualInputTaxCredit * ownershipYears;
   const totalGstSavings = gstOnVehicle + totalGstSavingsRunning;
   const totalCombinedSavings = totalIncomeTaxSaving + totalGstSavings;
   
@@ -263,7 +285,7 @@ export function calculateNovatedLease(inputs: UserInputs): ComparisonResult {
     breakdown: { 
       ...breakdown, 
       interest: totalInterest, 
-      fbt: annualECM * ownershipYears, // Now shows ECM total (which eliminates FBT)
+      fbt: annualECM * ownershipYears,
       balloonPayment: residualValue,
       gstSavingsVehicle: gstOnVehicle,
       gstSavingsRunning: totalGstSavingsRunning,
@@ -271,6 +293,8 @@ export function calculateNovatedLease(inputs: UserInputs): ComparisonResult {
       postTaxDeduction: annualECM * ownershipYears,
       monthlyPayment: monthlyLeasePayment,
       totalFinancePayments: totalLeasePayments,
+      grossRentalMonthly: grossRentalMonthly,
+      inputTaxCreditMonthly: monthlyInputTaxCredit,
     },
     keyInsight,
     takeHomePayReduction,

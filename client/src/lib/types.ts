@@ -42,6 +42,8 @@ export interface CostBreakdown {
   postTaxDeduction?: number;
   monthlyPayment?: number;
   totalFinancePayments?: number;
+  grossRentalMonthly?: number;
+  inputTaxCreditMonthly?: number;
 }
 
 export const DEFAULT_NOVATED_RATES: Record<FuelType, number> = {
