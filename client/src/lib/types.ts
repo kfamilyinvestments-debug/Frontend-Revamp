@@ -36,6 +36,10 @@ export interface CostBreakdown {
   fbt?: number;
   balloonPayment?: number;
   resaleValue?: number;
+  gstSavingsVehicle?: number;
+  gstSavingsRunning?: number;
+  preTaxDeduction?: number;
+  postTaxDeduction?: number;
 }
 
 export interface ComparisonResult {
@@ -73,11 +77,11 @@ export const DEFAULT_SERVICING_COSTS: Record<FuelType, number> = {
 };
 
 export const ATO_RESIDUAL_VALUES: Record<number, number> = {
-  1: 0.6556,
-  2: 0.5631,
-  3: 0.4700,
-  4: 0.3769,
-  5: 0.2838,
+  1: 0.6563,
+  2: 0.5625,
+  3: 0.4688,
+  4: 0.3750,
+  5: 0.2813,
 };
 
 export const DEPRECIATION_RATES: Record<number, number> = {

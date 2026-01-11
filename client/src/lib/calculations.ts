@@ -127,10 +127,46 @@ export function calculateNovatedLease(inputs: UserInputs): ComparisonResult {
   const { driveAwayPrice, ownershipYears, novatedInterestRate, fuelType, workUseOver50, annualSalary, payFrequency } = inputs;
   const breakdown = calculateRunningCosts(inputs);
   
-  const residualRate = ATO_RESIDUAL_VALUES[ownershipYears] || 0.2838;
-  const residualValue = driveAwayPrice * residualRate;
+  const isEV = fuelType === 'ev';
   
-  const financedAmount = driveAwayPrice;
+  // SEPARATE VEHICLE BASE VALUE FROM ON-ROAD COSTS
+  // Drive-away price includes: vehicle (incl GST) + stamp duty + rego/CTP
+  // We estimate on-road costs (stamp duty ~3.3% of vehicle + rego ~$900)
+  // These are approximations - actual on-roads vary by state
+  const estimatedRegoInDriveaway = 900;
+  const stampDutyRate = 0.033; // Approx 3.3% of vehicle value (NSW typical)
+  
+  // Solve for vehicle base value: driveAway = vehicleBase + (vehicleBase * stampDutyRate) + rego
+  // vehicleBase = (driveAway - rego) / (1 + stampDutyRate)
+  const vehicleBaseValue = (driveAwayPrice - estimatedRegoInDriveaway) / (1 + stampDutyRate);
+  const estimatedStampDuty = vehicleBaseValue * stampDutyRate;
+  
+  // GST SAVINGS ON VEHICLE PURCHASE
+  // GST only applies to the vehicle portion (not stamp duty or rego/CTP)
+  // Vehicle base value includes GST, so GST = vehicleBase * 10/110
+  const gstOnVehicle = vehicleBaseValue * (10 / 110);
+  const vehiclePriceExGst = vehicleBaseValue - gstOnVehicle;
+  
+  // GST SAVINGS ON RUNNING COSTS
+  // Insurance, servicing, tyres, fuel have GST - rego/CTP does not
+  const gstableRunningCostsAnnual = (breakdown.fuel + breakdown.insurance + breakdown.servicing + breakdown.tyres) / ownershipYears;
+  const nonGstableRunningCostsAnnual = breakdown.regoCtp / ownershipYears;
+  
+  // Running costs ex-GST
+  const gstOnRunningCostsAnnual = gstableRunningCostsAnnual * (10 / 110);
+  const runningCostsExGstAnnual = (gstableRunningCostsAnnual - gstOnRunningCostsAnnual) + nonGstableRunningCostsAnnual;
+  
+  const totalGstSavingsRunning = gstOnRunningCostsAnnual * ownershipYears;
+  
+  // FINANCED AMOUNT: Ex-GST vehicle price + on-road costs (stamp duty + rego)
+  // This is what gets financed in a novated lease
+  const onRoadCosts = estimatedStampDuty + estimatedRegoInDriveaway;
+  const financedAmount = vehiclePriceExGst + onRoadCosts;
+  
+  // ATO residual value based on ownership period
+  // Residual is calculated on the financed amount (ex-GST vehicle + on-roads)
+  const residualRate = ATO_RESIDUAL_VALUES[ownershipYears] || 0.2838;
+  const residualValue = financedAmount * residualRate;
   const monthlyRate = novatedInterestRate / 100 / 12;
   const numPayments = ownershipYears * 12;
   
@@ -138,6 +174,7 @@ export function calculateNovatedLease(inputs: UserInputs): ComparisonResult {
   let totalLeasePayments = 0;
   
   if (monthlyRate > 0) {
+    // Standard balloon payment loan formula
     monthlyLeasePayment = (financedAmount - residualValue / Math.pow(1 + monthlyRate, numPayments)) * 
       (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1);
     totalLeasePayments = monthlyLeasePayment * numPayments;
@@ -145,55 +182,65 @@ export function calculateNovatedLease(inputs: UserInputs): ComparisonResult {
     totalLeasePayments = financedAmount - residualValue;
   }
   
-  const totalInterest = totalLeasePayments - (financedAmount - residualValue);
-  
-  const totalRunningCosts = breakdown.fuel + breakdown.insurance + breakdown.servicing + breakdown.tyres + breakdown.regoCtp;
-  const annualRunningCosts = totalRunningCosts / ownershipYears;
+  const totalInterest = Math.max(0, totalLeasePayments - (financedAmount - residualValue));
   const annualLeasePayment = totalLeasePayments / ownershipYears;
   
-  const isEV = fuelType === 'ev';
-  
-  let annualPreTaxDeduction = annualLeasePayment + annualRunningCosts;
-  let annualFBT = 0;
+  // FBT CALCULATION using Employee Contribution Method (ECM)
+  // FBT is calculated on the vehicle base value (GST-inclusive, excluding on-roads)
+  // The employee makes a post-tax contribution equal to the fringe benefit value
+  let annualECM = 0; // Employee Contribution Method - post-tax deduction
   
   if (!isEV) {
     const statutoryFBTRate = 0.20;
-    const grossUpFactor = 2.0802;
-    const fbtRate = 0.47;
+    // Statutory fringe benefit value = 20% of vehicle base value (incl GST, excl on-roads)
+    // This matches the quote where base value $55,530 * 20% = $11,106 annual ECM
+    let fringeBenefitValue = vehicleBaseValue * statutoryFBTRate;
     
-    let fbtableValue = driveAwayPrice * statutoryFBTRate;
+    // If >50% work use, operating cost method can reduce FBT by 50%
     if (workUseOver50) {
-      fbtableValue = fbtableValue * 0.5;
+      fringeBenefitValue = fringeBenefitValue * 0.5;
     }
     
-    const grossedUpValue = fbtableValue * grossUpFactor;
-    annualFBT = grossedUpValue * fbtRate;
+    // ECM: Employee pays the fringe benefit value as a post-tax deduction
+    // This eliminates the FBT liability entirely
+    annualECM = fringeBenefitValue;
   }
   
+  // PRE-TAX DEDUCTION: Lease payments + running costs (all ex-GST)
+  const annualPreTaxDeduction = annualLeasePayment + runningCostsExGstAnnual;
+  
+  // TAX SAVINGS from salary sacrifice
   const baselineTax = calculateAustralianTax(annualSalary);
-  const reducedSalary = Math.max(0, annualSalary - annualPreTaxDeduction);
-  const novatedTax = calculateAustralianTax(reducedSalary);
+  const reducedTaxableIncome = Math.max(0, annualSalary - annualPreTaxDeduction);
+  const novatedTax = calculateAustralianTax(reducedTaxableIncome);
   
-  const annualTaxSaving = (baselineTax.incomeTax + baselineTax.medicareLevy) - (novatedTax.incomeTax + novatedTax.medicareLevy);
-  const totalTaxSaving = annualTaxSaving * ownershipYears;
+  const annualIncomeTaxSaving = (baselineTax.incomeTax + baselineTax.medicareLevy) - (novatedTax.incomeTax + novatedTax.medicareLevy);
+  const totalIncomeTaxSaving = annualIncomeTaxSaving * ownershipYears;
   
-  const annualNetCost = annualPreTaxDeduction - annualTaxSaving + annualFBT;
+  // TOTAL REDUCTION TO TAKE-HOME PAY (what the employee actually pays per year)
+  // = Pre-tax deduction - income tax savings + ECM (post-tax deduction)
+  const annualTakeHomePayReduction = annualPreTaxDeduction - annualIncomeTaxSaving + annualECM;
   
-  const totalLifetimeCost = (annualNetCost * ownershipYears) + residualValue;
+  // Total lifetime cost = take-home pay reduction over term + residual balloon payment
+  const totalLifetimeCost = (annualTakeHomePayReduction * ownershipYears) + residualValue;
   
   const costPerYear = totalLifetimeCost / ownershipYears;
   const costPerPayCycle = calculateCostPerPayCycle(totalLifetimeCost, ownershipYears, payFrequency);
   
+  // Take-home pay calculations for display
   const takeHomePayBefore = getPayCycleAmount(baselineTax.netTakeHomePay, payFrequency);
-  const takeHomePayReductionAnnual = annualNetCost;
-  const takeHomePayReduction = getPayCycleAmount(takeHomePayReductionAnnual, payFrequency);
+  const takeHomePayReduction = getPayCycleAmount(annualTakeHomePayReduction, payFrequency);
   const takeHomePayAfter = takeHomePayBefore - takeHomePayReduction;
+  
+  // Combined savings: income tax + GST savings
+  const totalGstSavings = gstOnVehicle + totalGstSavingsRunning;
+  const totalCombinedSavings = totalIncomeTaxSaving + totalGstSavings;
   
   let keyInsight = '';
   if (isEV) {
-    keyInsight = `FBT-exempt EV! Save ${formatCurrency(totalTaxSaving)} in tax.`;
+    keyInsight = `FBT-exempt EV! Save ${formatCurrency(totalCombinedSavings)} (tax + GST).`;
   } else {
-    keyInsight = `Tax savings of ${formatCurrency(totalTaxSaving)} over ${ownershipYears} years.`;
+    keyInsight = `Save ${formatCurrency(totalCombinedSavings)} (${formatCurrency(totalIncomeTaxSaving)} tax + ${formatCurrency(totalGstSavings)} GST).`;
   }
   
   return {
@@ -203,13 +250,17 @@ export function calculateNovatedLease(inputs: UserInputs): ComparisonResult {
     costPerPayCycle,
     breakdown: { 
       ...breakdown, 
-      interest: totalInterest > 0 ? totalInterest : 0, 
-      fbt: annualFBT * ownershipYears, 
-      balloonPayment: residualValue 
+      interest: totalInterest, 
+      fbt: annualECM * ownershipYears, // Now shows ECM total (which eliminates FBT)
+      balloonPayment: residualValue,
+      gstSavingsVehicle: gstOnVehicle,
+      gstSavingsRunning: totalGstSavingsRunning,
+      preTaxDeduction: annualPreTaxDeduction * ownershipYears,
+      postTaxDeduction: annualECM * ownershipYears,
     },
     keyInsight,
     takeHomePayReduction,
-    taxSavings: totalTaxSaving,
+    taxSavings: totalIncomeTaxSaving,
     takeHomePayBefore,
     takeHomePayAfter,
   };

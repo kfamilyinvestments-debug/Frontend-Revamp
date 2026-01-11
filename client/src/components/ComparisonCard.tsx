@@ -122,7 +122,15 @@ export function ComparisonCard({ result, displayPeriod, isLowest, isLowestPayImp
               <div className="mt-2 pt-2 border-t flex items-center gap-2">
                 <Zap className="h-4 w-4 text-emerald-600" />
                 <span className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">
-                  {formatCurrency(result.taxSavings)} tax saved over {ownershipYears} years
+                  {formatCurrency(result.taxSavings)} income tax saved
+                </span>
+              </div>
+            )}
+            {result.breakdown.gstSavingsVehicle !== undefined && (result.breakdown.gstSavingsVehicle + (result.breakdown.gstSavingsRunning || 0)) > 0 && (
+              <div className="mt-1 flex items-center gap-2">
+                <Zap className="h-4 w-4 text-emerald-600" />
+                <span className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">
+                  {formatCurrency(result.breakdown.gstSavingsVehicle + (result.breakdown.gstSavingsRunning || 0))} GST saved
                 </span>
               </div>
             )}
@@ -164,16 +172,16 @@ export function ComparisonCard({ result, displayPeriod, isLowest, isLowestPayImp
                 <span className="font-mono">{formatCurrency(result.breakdown.interest)}</span>
               </div>
             )}
-            {result.breakdown.fbt !== undefined && result.breakdown.fbt > 0 && (
+            {result.breakdown.fbt !== undefined && result.breakdown.fbt > 0 && result.method === 'novated' && (
               <div className="flex justify-between text-amber-600 dark:text-amber-400">
                 <span className="flex items-center gap-1">
-                  FBT
+                  ECM (Post-tax)
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <HelpCircle className="h-3 w-3 cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent className="max-w-xs">
-                      <p>Fringe Benefits Tax - additional tax on non-cash employee benefits like company cars.</p>
+                      <p>Employee Contribution Method - a post-tax deduction equal to 20% of vehicle value. This eliminates FBT liability entirely.</p>
                     </TooltipContent>
                   </Tooltip>
                 </span>
@@ -183,17 +191,49 @@ export function ComparisonCard({ result, displayPeriod, isLowest, isLowestPayImp
             {result.breakdown.balloonPayment !== undefined && result.breakdown.balloonPayment > 0 && (
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground flex items-center gap-1">
-                  Balloon Payment
+                  Residual (Balloon)
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <HelpCircle className="h-3 w-3 cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent className="max-w-xs">
-                      <p>The residual value payable at end of lease term (ATO minimum). You can pay this, refinance, or return the vehicle.</p>
+                      <p>The residual value payable at end of lease term (ATO minimum, ex-GST). If you purchase the vehicle at end of lease, add 10% GST to this amount.</p>
                     </TooltipContent>
                   </Tooltip>
                 </span>
                 <span className="font-mono">{formatCurrency(result.breakdown.balloonPayment)}</span>
+              </div>
+            )}
+            {result.breakdown.gstSavingsVehicle !== undefined && result.breakdown.gstSavingsVehicle > 0 && (
+              <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                <span className="flex items-center gap-1">
+                  GST Saved (Vehicle)
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-3 w-3 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>In a novated lease, you don't pay GST on the vehicle purchase price. This is a significant upfront saving.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </span>
+                <span className="font-mono">-{formatCurrency(result.breakdown.gstSavingsVehicle)}</span>
+              </div>
+            )}
+            {result.breakdown.gstSavingsRunning !== undefined && result.breakdown.gstSavingsRunning > 0 && (
+              <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                <span className="flex items-center gap-1">
+                  GST Saved (Running)
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-3 w-3 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>GST savings on running costs (fuel, insurance, servicing, tyres) over the lease term.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </span>
+                <span className="font-mono">-{formatCurrency(result.breakdown.gstSavingsRunning)}</span>
               </div>
             )}
           </div>
@@ -203,6 +243,11 @@ export function ComparisonCard({ result, displayPeriod, isLowest, isLowestPayImp
           <p className="text-sm text-primary font-medium" data-testid={`insight-${result.method}`}>
             {result.keyInsight}
           </p>
+          {result.method === 'novated' && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Estimates based on typical on-road costs. Get a formal quote for exact figures.
+            </p>
+          )}
         </div>
 
         {result.method !== 'novated' && result.breakdown.resaleValue !== undefined && result.breakdown.resaleValue > 0 && (
