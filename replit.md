@@ -98,6 +98,15 @@ npm run dev
 ```
 
 ## Recent Changes
+- Payroll Split Accuracy Fix (Jan 2026): Aligned novated lease calculations with real-world quotes
+  - Correct formula: Gross Rental = Pre-Tax + ECM + Input Tax Credit
+  - Pre-tax salary sacrifice = (Gross Rental - ECM) / 1.1 (the smaller portion)
+  - ECM (post-tax) = 20% × vehicle base value (the larger portion)
+  - Input tax credit = (Gross Rental - ECM) - Pre-Tax
+  - Tax savings calculated on income tax only (not Medicare) to match provider methodology
+  - Take-home reduction = (Pre-Tax - Tax Savings) + ECM
+  - Validated against real novated lease quote: within 0.1% accuracy
+
 - GST Treatment Fix (Jan 2026): Updated novated lease to correctly handle GST
   - Vehicle price ex-GST used for lease financing
   - Running costs ex-GST (fuel, insurance, servicing, tyres)
