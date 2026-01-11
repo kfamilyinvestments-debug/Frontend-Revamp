@@ -10,25 +10,27 @@ import {
 } from './types';
 
 export function calculateAustralianTax(grossIncome: number): TaxCalculation {
+  // Guard against NaN/undefined/null inputs
+  const income = isNaN(grossIncome) || grossIncome === null ? 0 : Math.max(0, grossIncome);
   let incomeTax = 0;
   
-  if (grossIncome <= 18200) {
+  if (income <= 18200) {
     incomeTax = 0;
-  } else if (grossIncome <= 45000) {
-    incomeTax = (grossIncome - 18200) * 0.19;
-  } else if (grossIncome <= 120000) {
-    incomeTax = 5092 + (grossIncome - 45000) * 0.325;
-  } else if (grossIncome <= 180000) {
-    incomeTax = 29467 + (grossIncome - 120000) * 0.37;
+  } else if (income <= 45000) {
+    incomeTax = (income - 18200) * 0.19;
+  } else if (income <= 120000) {
+    incomeTax = 5092 + (income - 45000) * 0.325;
+  } else if (income <= 180000) {
+    incomeTax = 29467 + (income - 120000) * 0.37;
   } else {
-    incomeTax = 51667 + (grossIncome - 180000) * 0.45;
+    incomeTax = 51667 + (income - 180000) * 0.45;
   }
   
-  const medicareLevy = grossIncome > 23365 ? grossIncome * 0.02 : 0;
-  const netTakeHomePay = grossIncome - incomeTax - medicareLevy;
+  const medicareLevy = income > 23365 ? income * 0.02 : 0;
+  const netTakeHomePay = income - incomeTax - medicareLevy;
   
   return {
-    grossIncome,
+    grossIncome: income,
     incomeTax,
     medicareLevy,
     netTakeHomePay,

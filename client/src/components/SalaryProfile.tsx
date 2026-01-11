@@ -54,8 +54,13 @@ export function SalaryProfile({
             <Input
               id="annual-salary"
               type="number"
-              value={annualSalary}
-              onChange={(e) => onSalaryChange(Number(e.target.value))}
+              value={annualSalary || ''}
+              onChange={(e) => {
+                const value = e.target.value === '' ? 0 : Number(e.target.value);
+                if (!isNaN(value)) {
+                  onSalaryChange(value);
+                }
+              }}
               className="pl-7 text-right font-mono"
               data-testid="input-annual-salary"
             />
