@@ -19,11 +19,13 @@ interface FinanceOptionsProps {
   financeDeposit: number;
   novatedInterestRate: number;
   workUseOver50: boolean;
+  businessUsePercentage: number;
   driveAwayPrice: number;
   onFinanceInterestChange: (rate: number) => void;
   onFinanceDepositChange: (deposit: number) => void;
   onNovatedInterestChange: (rate: number) => void;
   onWorkUseChange: (workUse: boolean) => void;
+  onBusinessUsePercentageChange: (percentage: number) => void;
 }
 
 export function FinanceOptions({
@@ -34,11 +36,13 @@ export function FinanceOptions({
   financeDeposit,
   novatedInterestRate,
   workUseOver50,
+  businessUsePercentage,
   driveAwayPrice,
   onFinanceInterestChange,
   onFinanceDepositChange,
   onNovatedInterestChange,
   onWorkUseChange,
+  onBusinessUsePercentageChange,
 }: FinanceOptionsProps) {
   const [isOpen, setIsOpen] = useState(true);
   const isEV = fuelType === 'ev';
@@ -145,28 +149,55 @@ export function FinanceOptions({
                 </div>
 
                 {!isEV && (
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <div className="flex items-center gap-2">
-                      <Briefcase className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <Label htmlFor="work-use" className="text-sm font-medium cursor-pointer">Work use over 50%</Label>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help inline ml-1.5" />
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-xs">
-                            <p>If you use the vehicle primarily for work, you may qualify for the Operating Cost Method which can reduce FBT.</p>
-                          </TooltipContent>
-                        </Tooltip>
+                  <>
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                      <div className="flex items-center gap-2">
+                        <Briefcase className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <Label htmlFor="work-use" className="text-sm font-medium cursor-pointer">Work use over 50%</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help inline ml-1.5" />
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>If you use the vehicle primarily for work (over 50%), you can use the Operating Cost Method which calculates FBT based on actual private use percentage.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
                       </div>
+                      <Switch
+                        id="work-use"
+                        checked={workUseOver50}
+                        onCheckedChange={onWorkUseChange}
+                        data-testid="toggle-work-use"
+                      />
                     </div>
-                    <Switch
-                      id="work-use"
-                      checked={workUseOver50}
-                      onCheckedChange={onWorkUseChange}
-                      data-testid="toggle-work-use"
-                    />
-                  </div>
+                    
+                    {workUseOver50 && (
+                      <div className="space-y-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm font-medium">Business Use</Label>
+                          <span className="font-mono font-semibold text-primary">{businessUsePercentage}%</span>
+                        </div>
+                        <Slider
+                          value={[businessUsePercentage]}
+                          onValueChange={([value]) => onBusinessUsePercentageChange(value)}
+                          min={50}
+                          max={100}
+                          step={5}
+                          className="w-full"
+                          data-testid="slider-business-use"
+                        />
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>50%</span>
+                          <span>100%</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Private use: {100 - businessUsePercentage}% — Operating Cost Method applies FBT only to private use.
+                        </p>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {isEV && (

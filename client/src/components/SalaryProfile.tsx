@@ -10,7 +10,7 @@ import { formatCurrency } from '@/lib/calculations';
 interface SalaryProfileProps {
   annualSalary: number;
   payFrequency: 'weekly' | 'fortnightly' | 'monthly';
-  taxCalculation: TaxCalculation;
+  taxCalculation?: TaxCalculation;
   onSalaryChange: (salary: number) => void;
   onFrequencyChange: (frequency: 'weekly' | 'fortnightly' | 'monthly') => void;
 }
@@ -22,13 +22,16 @@ export function SalaryProfile({
   onSalaryChange, 
   onFrequencyChange 
 }: SalaryProfileProps) {
-  const getPayCycleAmount = (annual: number) => {
-    switch (payFrequency) {
-      case 'weekly': return annual / 52;
-      case 'fortnightly': return annual / 26;
-      case 'monthly': return annual / 12;
-    }
+  
+  // This helper is now robust to prevent the "disappearing sidebar" crash
+  const getDisplayPayCycleAmount = (annual: number) => {
+    const safeAnnual = annual || 0;
+    if (payFrequency === 'weekly') return safeAnnual / 52;
+    if (payFrequency === 'monthly') return safeAnnual / 12;
+    return safeAnnual / 26; // Default fallback to fortnightly
   };
+
+  const payLabel = payFrequency === 'weekly' ? 'wk' : payFrequency === 'fortnightly' ? 'fn' : 'mo';
 
   return (
     <Card>
@@ -113,20 +116,23 @@ export function SalaryProfile({
         <div className="mt-4 p-4 rounded-lg bg-muted/50 space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Gross Income</span>
-            <span className="font-mono font-medium">{formatCurrency(taxCalculation.grossIncome)}</span>
+            <span className="font-mono font-medium">{formatCurrency(taxCalculation?.grossIncome || 0)}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Income Tax</span>
-            <span className="font-mono text-red-600 dark:text-red-400">-{formatCurrency(taxCalculation.incomeTax)}</span>
+            <span className="font-mono text-red-600 dark:text-red-400">-{formatCurrency(taxCalculation?.incomeTax || 0)}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Medicare Levy</span>
-            <span className="font-mono text-red-600 dark:text-red-400">-{formatCurrency(taxCalculation.medicareLevy)}</span>
+            <span className="font-mono text-red-600 dark:text-red-400">-{formatCurrency(taxCalculation?.medicareLevy || 0)}</span>
           </div>
           <div className="border-t pt-2 mt-2">
             <div className="flex justify-between">
               <span className="font-medium">Take-home Pay</span>
-              <span className="font-mono font-semibold text-primary">{formatCurrency(getPayCycleAmount(taxCalculation.netTakeHomePay))}<span className="text-xs text-muted-foreground ml-1">/{payFrequency === 'weekly' ? 'wk' : payFrequency === 'fortnightly' ? 'fn' : 'mo'}</span></span>
+              <span className="font-mono font-semibold text-primary">
+                {formatCurrency(getDisplayPayCycleAmount(taxCalculation?.netTakeHomePay || 0))}
+                <span className="text-xs text-muted-foreground ml-1">/{payLabel}</span>
+              </span>
             </div>
           </div>
         </div>

@@ -9,7 +9,6 @@ interface ComparisonCardProps {
   result: ComparisonResult;
   displayPeriod: 'weekly' | 'fortnightly' | 'monthly' | 'annually';
   isLowest: boolean;
-  isLowestPayImpact: boolean;
   ownershipYears: number;
   payFrequency: 'weekly' | 'fortnightly' | 'monthly';
 }
@@ -38,26 +37,29 @@ function getMethodColor(method: 'outright' | 'finance' | 'novated') {
   }
 }
 
-export function ComparisonCard({ result, displayPeriod, isLowest, isLowestPayImpact, ownershipYears, payFrequency }: ComparisonCardProps) {
+export function ComparisonCard({ result, displayPeriod, isLowest, ownershipYears, payFrequency }: ComparisonCardProps) {
   const periodLabel = getDisplayPeriodLabel(displayPeriod);
   const displayCost = convertToDisplayPeriod(result.totalLifetimeCost / ownershipYears, displayPeriod);
   const payFrequencyLabel = payFrequency === 'weekly' ? 'week' : payFrequency === 'fortnightly' ? 'fortnight' : 'month';
 
   return (
     <Card className={`relative overflow-visible ${isLowest ? 'ring-2 ring-primary' : ''}`}>
-      {isLowest && (
-        <Badge className="absolute -top-2.5 left-4 bg-primary text-primary-foreground gap-1">
-          <Check className="h-3 w-3" />
-          Lowest Cost
-        </Badge>
-      )}
-      {isLowestPayImpact && !isLowest && result.method === 'novated' && (
-        <Badge className="absolute -top-2.5 left-4 bg-chart-3 text-white gap-1">
-          <TrendingDown className="h-3 w-3" />
-          Best Pay Impact
-        </Badge>
-      )}
-      
+      {/* Reserve space for badge in all cards for alignment */}
+      <div style={{ height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
+        {isLowest ? (
+          <Badge className="bg-primary text-primary-foreground gap-1">
+            <Check className="h-3 w-3" />
+            Lowest Cost
+          </Badge>
+        ) : (
+          <span style={{ visibility: 'hidden' }}>
+            <Badge className="gap-1">
+              <Check className="h-3 w-3" />
+              Lowest Cost
+            </Badge>
+          </span>
+        )}
+      </div>
       <CardHeader className="pb-2">
         <CardTitle className={`flex items-center gap-2 text-lg ${getMethodColor(result.method)}`}>
           {getMethodIcon(result.method)}
@@ -87,67 +89,6 @@ export function ComparisonCard({ result, displayPeriod, isLowest, isLowestPayImp
             </p>
           </div>
         </div>
-
-        {result.method === 'novated' && result.takeHomePayReduction !== undefined && (
-          <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
-            <div className="flex items-center gap-2 mb-2">
-              <TrendingDown className="h-4 w-4 text-primary" />
-              <p className="text-sm font-medium">Take-home Pay Impact</p>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs">
-                  <p>This shows how much your take-home pay reduces each {payFrequencyLabel} under a novated lease arrangement.</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-            <div className="space-y-1">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Before car</span>
-                <span className="font-mono">{formatCurrency(result.takeHomePayBefore || 0)}/{payFrequencyLabel.slice(0, 2)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">After novated lease</span>
-                <span className="font-mono">{formatCurrency(result.takeHomePayAfter || 0)}/{payFrequencyLabel.slice(0, 2)}</span>
-              </div>
-              <div className="flex justify-between text-sm font-medium pt-1 border-t mt-1">
-                <span>Total Reduction</span>
-                <span className="font-mono text-amber-600 dark:text-amber-400" data-testid="novated-pay-reduction">
-                  -{formatCurrency(result.takeHomePayReduction)}/{payFrequencyLabel.slice(0, 2)}
-                </span>
-              </div>
-              {result.preTaxDeductionPerPeriod !== undefined && (
-                <div className="flex justify-between text-xs text-muted-foreground pl-2">
-                  <span>Pre-tax deduction</span>
-                  <span className="font-mono">-{formatCurrency(result.preTaxDeductionPerPeriod)}/{payFrequencyLabel.slice(0, 2)}</span>
-                </div>
-              )}
-              {result.postTaxDeductionPerPeriod !== undefined && result.postTaxDeductionPerPeriod > 0 && (
-                <div className="flex justify-between text-xs text-muted-foreground pl-2">
-                  <span>Post-tax ECM</span>
-                  <span className="font-mono">-{formatCurrency(result.postTaxDeductionPerPeriod)}/{payFrequencyLabel.slice(0, 2)}</span>
-                </div>
-              )}
-            </div>
-            {result.taxSavings && result.taxSavings > 0 && (
-              <div className="mt-2 pt-2 border-t flex items-center gap-2">
-                <Zap className="h-4 w-4 text-emerald-600" />
-                <span className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">
-                  {formatCurrency(result.taxSavings)} income tax saved
-                </span>
-              </div>
-            )}
-            {result.breakdown.gstSavingsVehicle !== undefined && (result.breakdown.gstSavingsVehicle + (result.breakdown.gstSavingsRunning || 0)) > 0 && (
-              <div className="mt-1 flex items-center gap-2">
-                <Zap className="h-4 w-4 text-emerald-600" />
-                <span className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">
-                  {formatCurrency(result.breakdown.gstSavingsVehicle + (result.breakdown.gstSavingsRunning || 0))} GST saved
-                </span>
-              </div>
-            )}
-          </div>
-        )}
 
         <div className="space-y-2 pt-2 border-t">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Cost Breakdown</p>
@@ -257,8 +198,8 @@ export function ComparisonCard({ result, displayPeriod, isLowest, isLowestPayImp
                       <HelpCircle className="h-3 w-3 cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent className="max-w-xs">
-                      <p>The residual value payable at end of lease term (ATO minimum, ex-GST). If you purchase the vehicle at end of lease, add 10% GST to this amount.</p>
-                    </TooltipContent>
+                        <p>The residual value payable at end of lease term (ATO minimum, now includes 10% GST).</p>
+                      </TooltipContent>
                   </Tooltip>
                 </span>
                 <span className="font-mono">{formatCurrency(result.breakdown.balloonPayment)}</span>
@@ -299,6 +240,67 @@ export function ComparisonCard({ result, displayPeriod, isLowest, isLowestPayImp
           </div>
         </div>
 
+        {result.method === 'novated' && result.takeHomePayReduction !== undefined && (
+          <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+            <div className="flex items-center gap-2 mb-2">
+              <TrendingDown className="h-4 w-4 text-primary" />
+              <p className="text-sm font-medium">Take-home Pay Impact</p>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p>This shows how much your take-home pay reduces each {payFrequencyLabel} under a novated lease arrangement.</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <div className="space-y-1">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Before car</span>
+                <span className="font-mono">{formatCurrency(result.takeHomePayBefore || 0)}/{payFrequencyLabel.slice(0, 2)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">After novated lease</span>
+                <span className="font-mono">{formatCurrency(result.takeHomePayAfter || 0)}/{payFrequencyLabel.slice(0, 2)}</span>
+              </div>
+              <div className="flex justify-between text-sm font-medium pt-1 border-t mt-1">
+                <span>Total Reduction</span>
+                <span className="font-mono text-amber-600 dark:text-amber-400" data-testid="novated-pay-reduction">
+                  -{formatCurrency(result.takeHomePayReduction)}/{payFrequencyLabel.slice(0, 2)}
+                </span>
+              </div>
+              {result.preTaxDeductionPerPeriod !== undefined && (
+                <div className="flex justify-between text-xs text-muted-foreground pl-2">
+                  <span>Pre-tax deduction</span>
+                  <span className="font-mono">-{formatCurrency(result.preTaxDeductionPerPeriod)}/{payFrequencyLabel.slice(0, 2)}</span>
+                </div>
+              )}
+              {result.postTaxDeductionPerPeriod !== undefined && result.postTaxDeductionPerPeriod > 0 && (
+                <div className="flex justify-between text-xs text-muted-foreground pl-2">
+                  <span>Post-tax ECM</span>
+                  <span className="font-mono">-{formatCurrency(result.postTaxDeductionPerPeriod)}/{payFrequencyLabel.slice(0, 2)}</span>
+                </div>
+              )}
+            </div>
+            {result.taxSavings && result.taxSavings > 0 && (
+              <div className="mt-2 pt-2 border-t flex items-center gap-2">
+                <Zap className="h-4 w-4 text-emerald-600" />
+                <span className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">
+                  {formatCurrency(result.taxSavings)} income tax saved
+                </span>
+              </div>
+            )}
+            {result.breakdown.gstSavingsVehicle !== undefined && (result.breakdown.gstSavingsVehicle + (result.breakdown.gstSavingsRunning || 0)) > 0 && (
+              <div className="mt-1 flex items-center gap-2">
+                <Zap className="h-4 w-4 text-emerald-600" />
+                <span className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">
+                  {formatCurrency(result.breakdown.gstSavingsVehicle + (result.breakdown.gstSavingsRunning || 0))} GST saved
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="pt-2 border-t">
           <p className="text-sm text-primary font-medium" data-testid={`insight-${result.method}`}>
             {result.keyInsight}
@@ -310,24 +312,7 @@ export function ComparisonCard({ result, displayPeriod, isLowest, isLowestPayImp
           )}
         </div>
 
-        {result.method !== 'novated' && result.breakdown.resaleValue !== undefined && result.breakdown.resaleValue > 0 && (
-          <div className="pt-2 border-t">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground flex items-center gap-1">
-                Est. Resale Value
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <HelpCircle className="h-3 w-3 cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs">
-                    <p>Estimated value of the vehicle at end of ownership. Shown for reference only - not deducted from total cost to ensure fair comparison across all methods.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </span>
-              <span className="font-mono text-muted-foreground">{formatCurrency(result.breakdown.resaleValue)}</span>
-            </div>
-          </div>
-        )}
+        
       </CardContent>
     </Card>
   );

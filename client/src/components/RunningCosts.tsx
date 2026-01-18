@@ -4,17 +4,20 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { FuelType, ATO_EV_COST_PER_KM, DEFAULT_FUEL_CONSUMPTION } from '@/lib/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { FuelType, ATO_EV_COST_PER_KM } from '@/lib/types';
 
 interface RunningCostsProps {
   fuelType: FuelType;
-  fuelPrice: number;
+  fuelCostAmount: number;
+  fuelCostPeriod: 'weekly' | 'monthly' | 'annually';
   kmPerYear: number;
   insuranceAnnual: number;
   servicingAnnual: number;
   tyresAnnual: number;
   regoCtpAnnual: number;
-  onFuelPriceChange: (price: number) => void;
+  onFuelCostAmountChange: (amount: number) => void;
+  onFuelCostPeriodChange: (period: 'weekly' | 'monthly' | 'annually') => void;
   onInsuranceChange: (amount: number) => void;
   onServicingChange: (amount: number) => void;
   onTyresChange: (amount: number) => void;
@@ -83,22 +86,30 @@ function CostInput({ label, value, onChange, min, max, step, prefix = '$', suffi
 
 export function RunningCosts({
   fuelType,
-  fuelPrice,
+  fuelCostAmount,
+  fuelCostPeriod,
   kmPerYear,
   insuranceAnnual,
   servicingAnnual,
   tyresAnnual,
   regoCtpAnnual,
-  onFuelPriceChange,
+  onFuelCostAmountChange,
+  onFuelCostPeriodChange,
   onInsuranceChange,
   onServicingChange,
   onTyresChange,
   onRegoCtpChange,
 }: RunningCostsProps) {
   const isEV = fuelType === 'ev';
-  const estimatedAnnualFuelCost = isEV 
-    ? ATO_EV_COST_PER_KM * kmPerYear 
-    : (DEFAULT_FUEL_CONSUMPTION[fuelType] / 100) * kmPerYear * fuelPrice;
+  
+  // Calculate annual fuel cost for display
+  const annualFuelCost = isEV 
+    ? ATO_EV_COST_PER_KM * kmPerYear
+    : fuelCostPeriod === 'weekly' 
+      ? fuelCostAmount * 52 
+      : fuelCostPeriod === 'monthly' 
+        ? fuelCostAmount * 12 
+        : fuelCostAmount;
 
   return (
     <Card>
@@ -119,24 +130,59 @@ export function RunningCosts({
               <strong>4.2 cents per km</strong> (ATO guideline rate)
             </p>
             <p className="text-xs text-emerald-600 dark:text-emerald-500 mt-1">
-              Est. ${Math.round(estimatedAnnualFuelCost).toLocaleString()}/year at {kmPerYear.toLocaleString()} km
+              Est. ${Math.round(annualFuelCost).toLocaleString()}/year at {kmPerYear.toLocaleString()} km
             </p>
           </div>
         ) : (
-          <CostInput
-            label="Fuel Price"
-            value={fuelPrice}
-            onChange={onFuelPriceChange}
-            min={1.20}
-            max={2.50}
-            step={0.01}
-            prefix="$"
-            suffix="/L"
-            icon={<Fuel className="h-4 w-4 text-muted-foreground" />}
-            tooltip={`Average cost per litre of fuel`}
-            defaultHint={`Est. $${Math.round(estimatedAnnualFuelCost).toLocaleString()}/year at ${DEFAULT_FUEL_CONSUMPTION[fuelType]}L/100km`}
-            testId="input-fuel-price"
-          />
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Fuel className="h-4 w-4 text-muted-foreground" />
+                <Label className="text-sm font-medium">Fuel Cost</Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p>Enter your estimated fuel cost and select the time period</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <div className="flex gap-2">
+                <div className="relative w-full max-w-full">
+                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                  <Input
+                    type="number"
+                    value={fuelCostAmount}
+                    onChange={(e) => onFuelCostAmountChange(Number(e.target.value))}
+                    className="text-right font-mono pl-6 pr-3 w-full max-w-full"
+                    data-testid="input-fuel-cost"
+                  />
+                </div>
+                <Select value={fuelCostPeriod} onValueChange={(value) => onFuelCostPeriodChange(value as 'weekly' | 'monthly' | 'annually')}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="annually">Annually</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <Slider
+              value={[fuelCostAmount]}
+              onValueChange={([v]) => onFuelCostAmountChange(v)}
+              min={fuelCostPeriod === 'weekly' ? 20 : fuelCostPeriod === 'monthly' ? 80 : 1000}
+              max={fuelCostPeriod === 'weekly' ? 300 : fuelCostPeriod === 'monthly' ? 1300 : 15000}
+              step={fuelCostPeriod === 'weekly' ? 5 : fuelCostPeriod === 'monthly' ? 10 : 100}
+              className="w-full"
+            />
+            <p className="text-xs text-muted-foreground">
+              Est. ${Math.round(annualFuelCost).toLocaleString()}/year
+            </p>
+          </div>
         )}
 
         <CostInput

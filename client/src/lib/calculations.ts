@@ -5,8 +5,7 @@ import {
   CostBreakdown,
   ATO_RESIDUAL_VALUES,
   DEPRECIATION_RATES,
-  ATO_EV_COST_PER_KM,
-  DEFAULT_FUEL_CONSUMPTION
+  ATO_EV_COST_PER_KM
 } from './types';
 
 function safeNumber(value: number, fallback: number = 0): number {
@@ -53,19 +52,25 @@ export function calculateAustralianTax(grossIncome: number): TaxCalculation {
 }
 
 export function calculateRunningCosts(inputs: UserInputs): CostBreakdown {
-  const { fuelType, kmPerYear, ownershipYears, fuelPrice, insuranceAnnual, servicingAnnual, tyresAnnual, regoCtpAnnual, driveAwayPrice } = inputs;
+  const { fuelType, kmPerYear, ownershipYears, fuelCostAmount, fuelCostPeriod, insuranceAnnual, servicingAnnual, tyresAnnual, regoCtpAnnual, driveAwayPrice } = inputs;
   
   let fuelCost = 0;
   if (fuelType === 'ev') {
+    // For EVs, use ATO rate of 4.2 cents per km
     fuelCost = ATO_EV_COST_PER_KM * kmPerYear * ownershipYears;
   } else {
-    const consumption = DEFAULT_FUEL_CONSUMPTION[fuelType];
-    fuelCost = (consumption / 100) * kmPerYear * fuelPrice * ownershipYears;
+    // For petrol/diesel and plug-in hybrid, use manual input
+    const annualFuelCost = fuelCostPeriod === 'weekly' 
+      ? fuelCostAmount * 52 
+      : fuelCostPeriod === 'monthly' 
+        ? fuelCostAmount * 12 
+        : fuelCostAmount;
+    fuelCost = annualFuelCost * ownershipYears;
   }
   
   const depreciationRate = DEPRECIATION_RATES[ownershipYears] || 0.58;
   const depreciation = driveAwayPrice * depreciationRate;
-  const resaleValue = driveAwayPrice - depreciation;
+  // resaleValue calculation removed
   
   const tyresNeeded = Math.ceil((kmPerYear * ownershipYears) / 45000);
   const totalTyres = tyresAnnual * tyresNeeded;
@@ -78,7 +83,7 @@ export function calculateRunningCosts(inputs: UserInputs): CostBreakdown {
     servicing: servicingAnnual * ownershipYears,
     tyres: totalTyres,
     regoCtp: regoCtpAnnual * ownershipYears,
-    resaleValue,
+    // resaleValue removed from return
   };
 }
 
@@ -148,7 +153,7 @@ export function calculateFinance(inputs: UserInputs): ComparisonResult {
 }
 
 export function calculateNovatedLease(inputs: UserInputs): ComparisonResult {
-  const { driveAwayPrice, ownershipYears, novatedInterestRate, fuelType, workUseOver50, annualSalary, payFrequency } = inputs;
+  const { driveAwayPrice, ownershipYears, novatedInterestRate, fuelType, workUseOver50, businessUsePercentage, annualSalary, payFrequency } = inputs;
   const breakdown = calculateRunningCosts(inputs);
   
   const isEV = fuelType === 'ev';
@@ -179,7 +184,9 @@ export function calculateNovatedLease(inputs: UserInputs): ComparisonResult {
   // ATO residual value based on ownership period
   // Residual is calculated on the financed amount (ex-GST vehicle + on-roads)
   const residualRate = ATO_RESIDUAL_VALUES[ownershipYears] || 0.2838;
-  const residualValue = financedAmount * residualRate;
+  // Residual value now always includes 10% GST
+  const residualValueExGst = financedAmount * residualRate;
+  const residualValue = residualValueExGst * 1.1;
   const monthlyRate = novatedInterestRate / 100 / 12;
   const numPayments = ownershipYears * 12;
   
@@ -217,23 +224,50 @@ export function calculateNovatedLease(inputs: UserInputs): ComparisonResult {
   const gstOnLeaseAndAdmin = (monthlyLeasePayment + adminFeeMonthly) * 0.1;
   const grossRentalMonthly = exGstTotalMonthly + gstOnLeaseAndAdmin + runningCostsGstMonthly;
   
-  // FBT CALCULATION using Employee Contribution Method (ECM)
-  // ECM = 20% of vehicle base value (GST-inclusive, excluding on-roads)
-  // This matches the quote: $55,530 × 20% = $11,106 annual
+  // FBT CALCULATION
+  // Method 1: Statutory Method (default) - 20% of vehicle value
+  // Method 2: Operating Cost Method (if business use > 50%) - FBT on private use % of operating costs
   let annualECM = 0;
   let monthlyECM = 0;
   
   if (!isEV) {
-    const statutoryFBTRate = 0.20;
-    let fringeBenefitValue = vehicleBaseValue * statutoryFBTRate;
-    
-    // If >50% work use, operating cost method can reduce FBT by 50%
-    if (workUseOver50) {
-      fringeBenefitValue = fringeBenefitValue * 0.5;
+    if (workUseOver50 && businessUsePercentage >= 50) {
+      // OPERATING COST METHOD
+      // Per ATO: Taxable value = (Total operating costs × Private use %) - Employee contributions
+      // Total operating costs = All running costs + depreciation + interest
+      // Private use % = 100% - Business use %
+      
+      const privateUsePercentage = (100 - businessUsePercentage) / 100;
+      
+      // Total operating costs for the year
+      const annualOperatingCosts = 
+        gstableRunningCostsAnnual + 
+        nonGstableRunningCostsAnnual + 
+        (breakdown.depreciation / ownershipYears) + 
+        (totalInterest / ownershipYears) +
+        (adminFeeMonthly * 12);
+      
+      // Taxable value = Operating costs × Private use %
+      const annualTaxableValue = annualOperatingCosts * privateUsePercentage;
+      
+      // FBT rate is 47% (FBT type 1) on the grossed-up taxable value
+      // Grossed-up value = Taxable value × 2.0802 (for 2023-24 FBT year)
+      const grossedUpTaxableValue = annualTaxableValue * 2.0802;
+      const annualFBT = grossedUpTaxableValue * 0.47;
+      
+      // Employee typically pays this via ECM to eliminate employer FBT
+      annualECM = annualFBT;
+      monthlyECM = annualECM / 12;
+      
+    } else {
+      // STATUTORY METHOD
+      // FBT = 20% of vehicle base value (statutory rate)
+      const statutoryFBTRate = 0.20;
+      const fringeBenefitValue = vehicleBaseValue * statutoryFBTRate;
+      
+      annualECM = fringeBenefitValue;
+      monthlyECM = annualECM / 12;
     }
-    
-    annualECM = fringeBenefitValue;
-    monthlyECM = annualECM / 12;
   }
   
   // PAYROLL SPLIT (the key calculation matching the quote)
@@ -286,8 +320,10 @@ export function calculateNovatedLease(inputs: UserInputs): ComparisonResult {
   let keyInsight = '';
   if (isEV) {
     keyInsight = `FBT-exempt EV! Save ${formatCurrency(safeNumber(totalCombinedSavings))} (tax + GST).`;
+  } else if (workUseOver50 && businessUsePercentage >= 50) {
+    keyInsight = `Operating Cost Method: ${businessUsePercentage}% business use. Save ${formatCurrency(safeNumber(totalCombinedSavings))}.`;
   } else {
-    keyInsight = `Save ${formatCurrency(safeNumber(totalCombinedSavings))} (${formatCurrency(safeNumber(totalIncomeTaxSaving))} tax + ${formatCurrency(safeNumber(totalGstSavings))} GST).`;
+    keyInsight = `Statutory Method. Save ${formatCurrency(safeNumber(totalCombinedSavings))} (${formatCurrency(safeNumber(totalIncomeTaxSaving))} tax + ${formatCurrency(safeNumber(totalGstSavings))} GST).`;
   }
   
   // Per-period values for display
@@ -328,9 +364,15 @@ function calculateCostPerPayCycle(totalCost: number, years: number, frequency: '
   return safeDivide(totalCost, years * periodsPerYear);
 }
 
-function getPayCycleAmount(annualAmount: number, frequency: 'weekly' | 'fortnightly' | 'monthly'): number {
-  const periodsPerYear = frequency === 'weekly' ? 52 : frequency === 'fortnightly' ? 26 : 12;
-  return safeDivide(annualAmount, periodsPerYear);
+function getPayCycleAmount(annualAmount: number, frequency: string): number {
+  const amount = safeNumber(annualAmount);
+  let periodsPerYear = 26; // Default to fortnightly if something goes wrong
+  
+  if (frequency === 'weekly') periodsPerYear = 52;
+  else if (frequency === 'monthly') periodsPerYear = 12;
+  else if (frequency === 'fortnightly') periodsPerYear = 26;
+  
+  return safeDivide(amount, periodsPerYear);
 }
 
 export function formatNumber(num: number): string {

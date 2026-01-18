@@ -3,7 +3,6 @@ import { Calculator as CalculatorIcon, AlertCircle } from 'lucide-react';
 import { VehicleSelector } from '@/components/VehicleSelector';
 import { UsageAssumptions } from '@/components/UsageAssumptions';
 import { RunningCosts } from '@/components/RunningCosts';
-import { SalaryProfile } from '@/components/SalaryProfile';
 import { ComparisonToggles } from '@/components/ComparisonToggles';
 import { FinanceOptions } from '@/components/FinanceOptions';
 import { ComparisonCard } from '@/components/ComparisonCard';
@@ -12,6 +11,10 @@ import { DisplayToggle } from '@/components/DisplayToggle';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Wallet } from 'lucide-react';
 import { 
   FuelType,
   UserInputs,
@@ -23,7 +26,9 @@ import {
   calculateAustralianTax, 
   calculateOutrightPurchase, 
   calculateFinance, 
-  calculateNovatedLease 
+  calculateNovatedLease,
+  formatCurrency,
+  convertToDisplayPeriod
 } from '@/lib/calculations';
 
 export default function Calculator() {
@@ -31,7 +36,8 @@ export default function Calculator() {
   const [driveAwayPrice, setDriveAwayPrice] = useState(45000);
   const [ownershipYears, setOwnershipYears] = useState(3);
   const [kmPerYear, setKmPerYear] = useState(15000);
-  const [fuelPrice, setFuelPrice] = useState(1.85);
+  const [fuelCostAmount, setFuelCostAmount] = useState(100);
+  const [fuelCostPeriod, setFuelCostPeriod] = useState<'weekly' | 'monthly' | 'annually'>('weekly');
   const [insuranceAnnual, setInsuranceAnnual] = useState(1200);
   const [servicingAnnual, setServicingAnnual] = useState(550);
   const [tyresAnnual, setTyresAnnual] = useState(800);
@@ -42,6 +48,7 @@ export default function Calculator() {
   const [financeDeposit, setFinanceDeposit] = useState(0);
   const [novatedInterestRate, setNovatedInterestRate] = useState(DEFAULT_NOVATED_RATES['petrol_diesel']);
   const [workUseOver50, setWorkUseOver50] = useState(false);
+  const [businessUsePercentage, setBusinessUsePercentage] = useState(75);
   const [comparisonMethods, setComparisonMethods] = useState({
     outright: true,
     finance: true,
@@ -59,71 +66,60 @@ export default function Calculator() {
     setComparisonMethods(prev => ({ ...prev, [method]: enabled }));
   }, []);
 
+  // SAFE INPUT BUNDLE: Ensures no undefined values are passed to the engine
   const userInputs: UserInputs = useMemo(() => ({
-    fuelType,
-    driveAwayPrice,
-    ownershipYears,
-    kmPerYear,
-    fuelPrice,
-    insuranceAnnual,
-    servicingAnnual,
-    tyresAnnual,
-    regoCtpAnnual,
-    annualSalary,
-    payFrequency,
-    financeInterestRate,
-    financeDeposit,
-    novatedInterestRate,
-    workUseOver50,
+    fuelType: fuelType || 'petrol_diesel',
+    driveAwayPrice: Number(driveAwayPrice) || 0,
+    ownershipYears: Number(ownershipYears) || 1,
+    kmPerYear: Number(kmPerYear) || 0,
+    fuelCostAmount: Number(fuelCostAmount) || 0,
+    fuelCostPeriod,
+    insuranceAnnual: Number(insuranceAnnual) || 0,
+    servicingAnnual: Number(servicingAnnual) || 0,
+    tyresAnnual: Number(tyresAnnual) || 0,
+    regoCtpAnnual: Number(regoCtpAnnual) || 0,
+    annualSalary: Number(annualSalary) || 0,
+    payFrequency: payFrequency || 'fortnightly',
+    financeInterestRate: Number(financeInterestRate) || 0,
+    financeDeposit: Number(financeDeposit) || 0,
+    novatedInterestRate: Number(novatedInterestRate) || 0,
+    workUseOver50: !!workUseOver50,
+    businessUsePercentage: Number(businessUsePercentage) || 50,
     comparisonMethods,
     displayPeriod,
   }), [
-    fuelType,
-    driveAwayPrice,
-    ownershipYears,
-    kmPerYear,
-    fuelPrice,
-    insuranceAnnual,
-    servicingAnnual,
-    tyresAnnual,
-    regoCtpAnnual,
-    annualSalary,
-    payFrequency,
-    financeInterestRate,
-    financeDeposit,
-    novatedInterestRate,
-    workUseOver50,
-    comparisonMethods,
-    displayPeriod,
+    fuelType, driveAwayPrice, ownershipYears, kmPerYear, fuelCostAmount, fuelCostPeriod, insuranceAnnual,
+    servicingAnnual, tyresAnnual, regoCtpAnnual, annualSalary, payFrequency,
+    financeInterestRate, financeDeposit, novatedInterestRate, workUseOver50, businessUsePercentage,
+    comparisonMethods, displayPeriod,
   ]);
 
-  const taxCalculation = useMemo(() => calculateAustralianTax(annualSalary), [annualSalary]);
+  // SAFE TAX CALC: Wraps the tax calculation in a try-catch to prevent sidebar crashes
+  const taxCalculation = useMemo(() => {
+    try {
+      return calculateAustralianTax(annualSalary || 0);
+    } catch (e) {
+      console.error("Tax calculation failed", e);
+      return { grossIncome: 0, incomeTax: 0, medicareLevy: 0, netTakeHomePay: 0 };
+    }
+  }, [annualSalary]);
 
+  // SAFE RESULTS: Prevents one bad method from crashing the whole list
   const results: ComparisonResult[] = useMemo(() => {
     const arr: ComparisonResult[] = [];
-    if (comparisonMethods.outright) arr.push(calculateOutrightPurchase(userInputs));
-    if (comparisonMethods.finance) arr.push(calculateFinance(userInputs));
-    if (comparisonMethods.novated) arr.push(calculateNovatedLease(userInputs));
+    try {
+      if (comparisonMethods.outright) arr.push(calculateOutrightPurchase(userInputs));
+      if (comparisonMethods.finance) arr.push(calculateFinance(userInputs));
+      if (comparisonMethods.novated) arr.push(calculateNovatedLease(userInputs));
+    } catch (e) {
+      console.error("Comparison calculation failed", e);
+    }
     return arr;
   }, [userInputs, comparisonMethods]);
 
   const lowestCostMethod = useMemo(() => {
     if (results.length === 0) return null;
     return results.reduce((min, r) => r.totalLifetimeCost < min.totalLifetimeCost ? r : min, results[0]).method;
-  }, [results]);
-
-  const lowestPayImpactMethod = useMemo(() => {
-    const novatedResult = results.find(r => r.method === 'novated');
-    if (novatedResult && novatedResult.takeHomePayReduction !== undefined) {
-      const otherMethods = results.filter(r => r.method !== 'novated');
-      const novatedPayImpact = novatedResult.takeHomePayReduction;
-      const allLower = otherMethods.every(r => {
-        const otherPayImpact = r.costPerPayCycle;
-        return novatedPayImpact < otherPayImpact;
-      });
-      if (allLower) return 'novated';
-    }
-    return null;
   }, [results]);
 
   const hasNoMethods = !comparisonMethods.outright && !comparisonMethods.finance && !comparisonMethods.novated;
@@ -145,71 +141,122 @@ export default function Calculator() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex flex-col lg:flex-row gap-6">
-          <aside className="w-full lg:w-96 lg:flex-shrink-0">
-            <ErrorBoundary fallbackMessage="An error occurred in the input panel. Try refreshing the page.">
-              <ScrollArea className="lg:h-[calc(100vh-8rem)]">
-                <div className="space-y-4 pb-6 pr-2">
+          {/* ASIDE WITH MIN-WIDTH: Ensures column exists even if content errors */}
+          <aside className="w-full lg:w-[450px] lg:min-w-[450px] flex-none box-border px-4 overflow-x-visible">
+              <ScrollArea>
+                <ErrorBoundary fallbackMessage="Calculations hit a snag. Please check your inputs or refresh.">
+                <div className="space-y-4 pb-6 box-border">
                   <VehicleSelector
-                  fuelType={fuelType}
-                  driveAwayPrice={driveAwayPrice}
-                  onFuelTypeChange={handleFuelTypeChange}
-                  onPriceChange={setDriveAwayPrice}
-                />
+                    fuelType={fuelType}
+                    driveAwayPrice={driveAwayPrice}
+                    onFuelTypeChange={handleFuelTypeChange}
+                    onPriceChange={setDriveAwayPrice}
+                  />
                 
-                <UsageAssumptions
-                  ownershipYears={ownershipYears}
-                  kmPerYear={kmPerYear}
-                  onOwnershipChange={setOwnershipYears}
-                  onKmChange={setKmPerYear}
-                />
+                  <UsageAssumptions
+                    ownershipYears={ownershipYears}
+                    kmPerYear={kmPerYear}
+                    onOwnershipChange={setOwnershipYears}
+                    onKmChange={setKmPerYear}
+                  />
 
-                <RunningCosts
-                  fuelType={fuelType}
-                  fuelPrice={fuelPrice}
-                  kmPerYear={kmPerYear}
-                  insuranceAnnual={insuranceAnnual}
-                  servicingAnnual={servicingAnnual}
-                  tyresAnnual={tyresAnnual}
-                  regoCtpAnnual={regoCtpAnnual}
-                  onFuelPriceChange={setFuelPrice}
-                  onInsuranceChange={setInsuranceAnnual}
-                  onServicingChange={setServicingAnnual}
-                  onTyresChange={setTyresAnnual}
-                  onRegoCtpChange={setRegoCtpAnnual}
-                />
+                  <RunningCosts
+                    fuelType={fuelType}
+                    fuelCostAmount={fuelCostAmount}
+                    fuelCostPeriod={fuelCostPeriod}
+                    kmPerYear={kmPerYear}
+                    insuranceAnnual={insuranceAnnual}
+                    servicingAnnual={servicingAnnual}
+                    tyresAnnual={tyresAnnual}
+                    regoCtpAnnual={regoCtpAnnual}
+                    onFuelCostAmountChange={setFuelCostAmount}
+                    onFuelCostPeriodChange={setFuelCostPeriod}
+                    onInsuranceChange={setInsuranceAnnual}
+                    onServicingChange={setServicingAnnual}
+                    onTyresChange={setTyresAnnual}
+                    onRegoCtpChange={setRegoCtpAnnual}
+                  />
 
-                <SalaryProfile
-                  annualSalary={annualSalary}
-                  payFrequency={payFrequency}
-                  taxCalculation={taxCalculation}
-                  onSalaryChange={setAnnualSalary}
-                  onFrequencyChange={setPayFrequency}
-                />
+                  {/* Simplified Salary Component - Stable Version */}
+                  <Card>
+                    <CardHeader className="pb-4">
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <Wallet className="h-5 w-5 text-primary" />
+                        Your Salary & Pay Cycle
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="annual-salary" className="text-sm font-medium">Annual Gross Salary</Label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                          <Input
+                            id="annual-salary"
+                            type="number"
+                            value={annualSalary || ''}
+                            onChange={(e) => {
+                              const val = e.target.value === '' ? 0 : Number(e.target.value);
+                              if (!isNaN(val)) setAnnualSalary(val);
+                            }}
+                            className="pl-7 text-right font-mono"
+                          />
+                        </div>
+                      </div>
 
-                <ComparisonToggles
-                  outright={comparisonMethods.outright}
-                  finance={comparisonMethods.finance}
-                  novated={comparisonMethods.novated}
-                  onToggle={handleToggle}
-                />
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Pay Frequency</Label>
+                        <div className="grid grid-cols-3 gap-2">
+                          {(['weekly', 'fortnightly', 'monthly'] as const).map((freq) => (
+                            <button
+                              key={freq}
+                              onClick={() => setPayFrequency(freq)}
+                              className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                                payFrequency === freq 
+                                  ? 'border-primary bg-primary/10 text-primary' 
+                                  : 'border-input hover:bg-accent'
+                              }`}
+                            >
+                              {freq === 'weekly' ? 'Weekly' : freq === 'fortnightly' ? 'Fortnightly' : 'Monthly'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
 
-                <FinanceOptions
-                  showFinance={comparisonMethods.finance}
-                  showNovated={comparisonMethods.novated}
-                  fuelType={fuelType}
-                  financeInterestRate={financeInterestRate}
-                  financeDeposit={financeDeposit}
-                  novatedInterestRate={novatedInterestRate}
-                  workUseOver50={workUseOver50}
-                  driveAwayPrice={driveAwayPrice}
-                  onFinanceInterestChange={setFinanceInterestRate}
-                  onFinanceDepositChange={setFinanceDeposit}
-                  onNovatedInterestChange={setNovatedInterestRate}
-                  onWorkUseChange={setWorkUseOver50}
-                />
+                      <div className="space-y-1 text-sm pt-2 border-t">
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>Take-home ({payFrequency}):</span>
+                          <span className="font-mono">{formatCurrency(convertToDisplayPeriod(taxCalculation.netTakeHomePay, payFrequency))}</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <ComparisonToggles
+                    outright={comparisonMethods.outright}
+                    finance={comparisonMethods.finance}
+                    novated={comparisonMethods.novated}
+                    onToggle={handleToggle}
+                  />
+
+                  <FinanceOptions
+                    showFinance={comparisonMethods.finance}
+                    showNovated={comparisonMethods.novated}
+                    fuelType={fuelType}
+                    financeInterestRate={financeInterestRate}
+                    financeDeposit={financeDeposit}
+                    novatedInterestRate={novatedInterestRate}
+                    workUseOver50={workUseOver50}
+                    businessUsePercentage={businessUsePercentage}
+                    driveAwayPrice={driveAwayPrice}
+                    onFinanceInterestChange={setFinanceInterestRate}
+                    onFinanceDepositChange={setFinanceDeposit}
+                    onNovatedInterestChange={setNovatedInterestRate}
+                    onWorkUseChange={setWorkUseOver50}
+                    onBusinessUsePercentageChange={setBusinessUsePercentage}
+                  />
                 </div>
+                </ErrorBoundary>
               </ScrollArea>
-            </ErrorBoundary>
           </aside>
 
           <div className="flex-1 space-y-6">
@@ -235,12 +282,11 @@ export default function Calculator() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                   {results.map(result => (
-                    <ComparisonCard
+                    <ComparisonResultCard
                       key={result.method}
                       result={result}
                       displayPeriod={displayPeriod}
                       isLowest={result.method === lowestCostMethod}
-                      isLowestPayImpact={result.method === lowestPayImpactMethod}
                       ownershipYears={ownershipYears}
                       payFrequency={payFrequency}
                     />
@@ -261,5 +307,14 @@ export default function Calculator() {
         </div>
       </main>
     </div>
+  );
+}
+
+// Wrapper for the card to ensure it doesn't crash if passed bad props
+function ComparisonResultCard(props: any) {
+  return (
+    <ErrorBoundary fallbackMessage="Could not display this comparison.">
+      <ComparisonCard {...props} />
+    </ErrorBoundary>
   );
 }

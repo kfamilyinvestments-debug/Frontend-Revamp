@@ -5,7 +5,8 @@ export interface UserInputs {
   driveAwayPrice: number;
   ownershipYears: number;
   kmPerYear: number;
-  fuelPrice: number;
+  fuelCostAmount: number;
+  fuelCostPeriod: 'weekly' | 'monthly' | 'annually';
   insuranceAnnual: number;
   servicingAnnual: number;
   tyresAnnual: number;
@@ -16,6 +17,7 @@ export interface UserInputs {
   financeDeposit: number;
   novatedInterestRate: number;
   workUseOver50: boolean;
+  businessUsePercentage: number;
   comparisonMethods: {
     outright: boolean;
     finance: boolean;
@@ -35,7 +37,7 @@ export interface CostBreakdown {
   interest?: number;
   fbt?: number;
   balloonPayment?: number;
-  resaleValue?: number;
+  // resaleValue removed: no longer used in UI or calculations
   gstSavingsVehicle?: number;
   gstSavingsRunning?: number;
   preTaxDeduction?: number;
