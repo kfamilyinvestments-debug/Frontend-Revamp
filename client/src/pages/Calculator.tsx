@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Wallet } from 'lucide-react';
+import Footer from '@/components/Footer';
 import { 
   FuelType,
   UserInputs,
@@ -130,8 +131,8 @@ export default function Calculator() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex h-14 items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <CalculatorIcon className="h-6 w-6 text-primary" />
-            <h1 className="text-lg font-semibold hidden sm:block">Car Cost Calculator</h1>
-            <h1 className="text-lg font-semibold sm:hidden">Cost Calculator</h1>
+            <h1 className="text-lg font-semibold hidden sm:block">Car Lease vs Loan Calculator Australia</h1>
+            <h1 className="text-lg font-semibold sm:hidden">Lease vs Loan Calculator</h1>
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
@@ -294,18 +295,10 @@ export default function Calculator() {
                 </div>
               </>
             )}
-
-            <footer className="pt-8 pb-4 border-t">
-              <p className="text-xs text-muted-foreground text-center max-w-2xl mx-auto">
-                This calculator provides estimates only and does not constitute financial or tax advice. 
-                Actual costs may vary based on individual circumstances, market conditions, and specific 
-                vehicle and financing terms. Please consult with a qualified financial advisor for 
-                personalized advice.
-              </p>
-            </footer>
           </div>
         </div>
       </main>
+      <Footer />
     </div>
   );
 }
