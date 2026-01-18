@@ -1,10 +1,16 @@
-import { Car, Fuel, Zap, Leaf } from 'lucide-react';
+import { Car, Fuel, Zap, Leaf, AlertTriangle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { FuelType } from '@/lib/types';
+
+// FBT Exemption Constants
+const LCT_THRESHOLD = 91387;
+const GOVT_COSTS_BUFFER = 5000;
+const DRIVE_AWAY_THRESHOLD = LCT_THRESHOLD + GOVT_COSTS_BUFFER; // 96387
 
 interface VehicleSelectorProps {
   fuelType: FuelType;
@@ -41,6 +47,10 @@ function getFuelDescription(fuelType: FuelType) {
 }
 
 export function VehicleSelector({ fuelType, driveAwayPrice, onFuelTypeChange, onPriceChange }: VehicleSelectorProps) {
+  // Check if EV exceeds FBT exemption threshold
+  const isEV = fuelType === 'ev';
+  const exceedsThreshold = isEV && driveAwayPrice > DRIVE_AWAY_THRESHOLD;
+  
   return (
     <Card>
       <CardHeader className="pb-4">
@@ -105,6 +115,17 @@ export function VehicleSelector({ fuelType, driveAwayPrice, onFuelTypeChange, on
             The total price including all on-road costs
           </p>
         </div>
+
+        {/* FBT Exemption Warning for EVs exceeding threshold */}
+        {exceedsThreshold && (
+          <Alert variant="destructive" className="border-orange-500 bg-orange-50 dark:bg-orange-950/20">
+            <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+            <AlertDescription className="text-sm text-orange-800 dark:text-orange-200">
+              <strong>⚠️ Warning:</strong> This drive-away price likely exceeds the ${LCT_THRESHOLD.toLocaleString()} Luxury Car Tax (LCT) threshold for EVs. 
+              This vehicle may not be FBT exempt and could be calculated as a fuel vehicle.
+            </AlertDescription>
+          </Alert>
+        )}
       </CardContent>
     </Card>
   );

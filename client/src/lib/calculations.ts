@@ -152,11 +152,18 @@ export function calculateFinance(inputs: UserInputs): ComparisonResult {
   };
 }
 
+// FBT Exemption Constants
+const LCT_THRESHOLD = 91387;
+const GOVT_COSTS_BUFFER = 5000;
+const DRIVE_AWAY_THRESHOLD = LCT_THRESHOLD + GOVT_COSTS_BUFFER; // 96387
+
 export function calculateNovatedLease(inputs: UserInputs): ComparisonResult {
   const { driveAwayPrice, ownershipYears, novatedInterestRate, fuelType, workUseOver50, businessUsePercentage, annualSalary, payFrequency } = inputs;
   const breakdown = calculateRunningCosts(inputs);
   
+  // Check if EV is FBT exempt based on LCT threshold
   const isEV = fuelType === 'ev';
+  const isFbtExempt = isEV && driveAwayPrice <= DRIVE_AWAY_THRESHOLD;
   
   // SEPARATE VEHICLE BASE VALUE FROM ON-ROAD COSTS
   // Drive-away price includes: vehicle (incl GST) + stamp duty + rego/CTP
@@ -230,7 +237,8 @@ export function calculateNovatedLease(inputs: UserInputs): ComparisonResult {
   let annualECM = 0;
   let monthlyECM = 0;
   
-  if (!isEV) {
+  // Apply FBT if vehicle is not FBT-exempt (non-EV or EV exceeding threshold)
+  if (!isFbtExempt) {
     if (workUseOver50 && businessUsePercentage >= 50) {
       // OPERATING COST METHOD
       // Per ATO: Taxable value = (Total operating costs × Private use %) - Employee contributions
@@ -318,8 +326,10 @@ export function calculateNovatedLease(inputs: UserInputs): ComparisonResult {
   const totalCombinedSavings = totalIncomeTaxSaving + totalGstSavings;
   
   let keyInsight = '';
-  if (isEV) {
+  if (isFbtExempt) {
     keyInsight = `FBT-exempt EV! Save ${formatCurrency(safeNumber(totalCombinedSavings))} (tax + GST).`;
+  } else if (isEV && !isFbtExempt) {
+    keyInsight = `EV exceeds LCT threshold - FBT applies. Save ${formatCurrency(safeNumber(totalCombinedSavings))}.`;
   } else if (workUseOver50 && businessUsePercentage >= 50) {
     keyInsight = `Operating Cost Method: ${businessUsePercentage}% business use. Save ${formatCurrency(safeNumber(totalCombinedSavings))}.`;
   } else {
